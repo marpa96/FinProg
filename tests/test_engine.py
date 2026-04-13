@@ -59,6 +59,23 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(len(generate_transaction_events(transaction, "2026-04-01", 15)), 1)
         self.assertEqual(len(generate_transaction_events(transaction, "2026-04-11", 15)), 0)
 
+    def test_one_time_items_with_end_date_distribute_across_range(self) -> None:
+        transaction = {
+            "id": "trip",
+            "name": "Trip Food",
+            "type": "expense",
+            "kind": "one_time",
+            "cashflowClass": "variable",
+            "amount": 90,
+            "startDate": "2026-04-02",
+            "endDate": "2026-04-04",
+            "active": True,
+        }
+        events = generate_transaction_events(transaction, "2026-04-01", 5)
+        self.assertEqual([event["date"] for event in events], ["2026-04-02", "2026-04-03", "2026-04-04"])
+        self.assertEqual([event["entryKind"] for event in events], ["distributed_range", "distributed_range", "distributed_range"])
+        self.assertEqual([event["amount"] for event in events], [-30, -30, -30])
+
     def test_daily_normalization_rates_include_savings(self) -> None:
         self.assertEqual(get_daily_rate({"type": "income", "kind": "recurring", "amount": 700, "frequency": "weekly", "active": True}), 100)
         self.assertEqual(get_daily_rate({"type": "expense", "kind": "recurring", "amount": 140, "frequency": "biweekly", "active": True}), -10)

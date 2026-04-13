@@ -198,9 +198,10 @@ def build_daily_allocation(transaction: dict[str, Any], occurrence_date: str) ->
     }
 
 
-def build_event(transaction: dict[str, Any], occurrence_date: str) -> dict[str, Any]:
-    cash_amount = get_cash_impact(transaction, transaction["amount"])
-    savings_amount = get_savings_impact(transaction, transaction["amount"])
+def build_event(transaction: dict[str, Any], occurrence_date: str, amount: float | None = None, entry_kind: str | None = None) -> dict[str, Any]:
+    event_amount = transaction["amount"] if amount is None else amount
+    cash_amount = get_cash_impact(transaction, event_amount)
+    savings_amount = get_savings_impact(transaction, event_amount)
     return {
         "id": f"{transaction['id']}:{occurrence_date}",
         "transactionId": transaction["id"],
@@ -212,7 +213,7 @@ def build_event(transaction: dict[str, Any], occurrence_date: str) -> dict[str, 
         "savingsAmount": savings_amount,
         "date": occurrence_date,
         "source": transaction,
-        "entryKind": "one_time" if transaction["kind"] == "one_time" else "scheduled_event",
+        "entryKind": entry_kind or ("one_time" if transaction["kind"] == "one_time" else "scheduled_event"),
         "statementBucket": get_statement_bucket_for_transaction(transaction),
     }
 
@@ -324,6 +325,23 @@ def generate_semimonthly_events(transaction, range_start, range_end):
     return sorted(events, key=lambda item: item["date"])
 
 
+def generate_distributed_range_events(transaction, range_start, range_end):
+    start_date = parse_iso_date(transaction["startDate"])
+    end_date = parse_iso_date(transaction["endDate"])
+    if not start_date or not end_date or end_date <= start_date:
+        return [build_event(transaction, transaction["startDate"])] if is_within_range(start_date, range_start, range_end) else []
+
+    total_days = (end_date - start_date).days + 1
+    daily_amount = transaction["amount"] / total_days
+    cursor = max(start_date, range_start)
+    last_date = min(end_date, range_end)
+    events = []
+    while cursor <= last_date:
+        events.append(build_event(transaction, to_iso_date(cursor), daily_amount, "distributed_range"))
+        cursor = add_days(cursor, 1)
+    return events
+
+
 def generate_transaction_events(transaction_input: dict[str, Any], forecast_start_date: str, forecast_days: int) -> list[dict[str, Any]]:
     transaction = normalize_transaction(transaction_input)
     range_start = parse_iso_date(forecast_start_date)
@@ -331,6 +349,8 @@ def generate_transaction_events(transaction_input: dict[str, Any], forecast_star
     if not transaction["active"] or not is_transaction_usable(transaction):
         return []
     if transaction["kind"] == "one_time":
+        if transaction.get("endDate"):
+            return generate_distributed_range_events(transaction, range_start, range_end)
         event_date = parse_iso_date(transaction["startDate"])
         return [build_event(transaction, transaction["startDate"])] if is_within_range(event_date, range_start, range_end) else []
     frequency = transaction["frequency"]
@@ -349,6 +369,8 @@ def generate_transaction_events(transaction_input: dict[str, Any], forecast_star
 
 def describe_schedule(transaction: dict[str, Any]) -> str:
     if transaction.get("kind") == "one_time":
+        if transaction.get("endDate"):
+            return f"Distributed from {transaction.get('startDate')} to {transaction.get('endDate')}"
         return f"One-time on {transaction.get('startDate')}"
     if transaction.get("frequency") == "semimonthly":
         day_one, day_two = transaction.get("schedule", {}).get("semimonthlyDays", [1, 15])
@@ -407,7 +429,7 @@ def build_forecast(settings: dict[str, Any], transaction_inputs: list[dict[str, 
             for transaction in transactions
             if transaction["kind"] == "recurring" and is_transaction_active_on_date(transaction, date_obj)
         ]
-        one_time_entries = [event for event in day_events if event["entryKind"] == "one_time"]
+        one_time_entries = [event for event in day_events if event["entryKind"] in {"one_time", "distributed_range"}]
         base_entries = recurring_allocations + one_time_entries
         split_entries = [entry for entry in (build_income_split_entry(item) for item in base_entries) if entry]
         detail_entries = base_entries + split_entries
@@ -492,4 +514,3 @@ def build_forecast(settings: dict[str, Any], transaction_inputs: list[dict[str, 
         "timeline": timeline,
         "transactionSummaries": transaction_summaries,
     }
-

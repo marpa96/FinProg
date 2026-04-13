@@ -88,14 +88,18 @@ def main() -> int:
         return run_command([sys.executable, "anti-regression/run_regression.py"])
 
     print("Starting the web app...")
-    api_process = start_api_server()
+    api_process = None
+    if wait_for_api(timeout_seconds=0.5):
+        print("Python API is already running.")
+    else:
+        api_process = start_api_server()
     try:
         if not wait_for_api():
             print("Python API did not become ready in time.")
             return 1
         return run_command([npm_command, "run", "dev", "--", "--open"])
     finally:
-        if api_process.poll() is None:
+        if api_process is not None and api_process.poll() is None:
             api_process.terminate()
             try:
                 api_process.wait(timeout=5)

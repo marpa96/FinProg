@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import sampleScenario from "../examples/simple_household.json";
 import { clearState, loadState, saveState } from "./storage.js";
@@ -22,6 +22,10 @@ const EMPTY_TRANSACTION = {
 };
 
 const frequencyOptions = ["weekly", "biweekly", "semimonthly", "monthly", "yearly"];
+
+function formatFrequencyOption(option) {
+  return option.charAt(0).toUpperCase() + option.slice(1);
+}
 
 function createDefaultCategories() {
   return {
@@ -94,6 +98,18 @@ function createDefaultCategories() {
 
 function getTodayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getInclusiveDayCount(startIso, endIso) {
+  const start = new Date(`${startIso}T00:00:00Z`);
+  const end = new Date(`${endIso}T00:00:00Z`);
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+    return 1;
+  }
+
+  return Math.max(1, Math.round((end - start) / dayMs) + 1);
 }
 
 function parseOptionalPercent(value) {
@@ -242,6 +258,53 @@ function getIncomeSavingsRuleDefaults(categories, categoryId, subcategoryId) {
   return category.defaultSavingsRulePercent;
 }
 
+function getExpenseSuggestionScore(expenseName, query) {
+  const normalizedName = expenseName.toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return 0;
+  }
+
+  if (normalizedName === normalizedQuery) {
+    return 100;
+  }
+
+  if (normalizedName.startsWith(normalizedQuery)) {
+    return 80;
+  }
+
+  if (normalizedName.includes(normalizedQuery)) {
+    return 60;
+  }
+
+  const queryParts = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (queryParts.every((part) => normalizedName.includes(part))) {
+    return 40;
+  }
+
+  return 0;
+}
+
+function getTransactionTypeTitle(type) {
+  if (type === "income") {
+    return "Income";
+  }
+  if (type === "savings") {
+    return "Savings";
+  }
+  return "Expense";
+}
+
+function getTransactionTypePlural(type) {
+  if (type === "income") {
+    return "income";
+  }
+  if (type === "savings") {
+    return "savings";
+  }
+  return "expenses";
+}
+
 function createDraftFromTransaction(transaction) {
   return {
     ...EMPTY_TRANSACTION,
@@ -290,6 +353,415 @@ function formatCurrencyCode(value) {
   }).format(value || 0)} USD`;
 }
 
+function escapeCsvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function formatCsvNumber(value) {
+  return Number(value || 0).toFixed(2);
+}
+
+function getStatementBucketLabel(entry) {
+  if (entry.entryKind === "income_split") {
+    return "income_splits";
+  }
+
+  const bucket = entry.statementBucket || "";
+  return bucket.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function buildDetailedRangeCsv(forecast, categories, startDate, endDate) {
+  const headers = [
+    "date", "row_type", "statement_bucket", "name", "type", "cashflow_class", "kind", "entry_kind",
+    "amount", "source_amount", "cash_amount", "savings_amount", "category", "subcategory", "category_id", "subcategory_id", "transaction_id",
+    "frequency", "start_date", "end_date", "active", "savings_rule_percent", "semimonthly_days",
+    "day_fixed_income", "day_variable_income", "day_fixed_expenses", "day_variable_expenses",
+    "day_fixed_savings", "day_variable_savings", "day_income_splits",
+    "day_total_inflow", "day_total_outflow", "day_net", "day_balance", "day_savings_balance",
+  ];
+
+  const rows = [headers];
+  const days = forecast.timeline.filter((day) => day.date >= startDate && day.date <= endDate);
+
+  for (const day of days) {
+    const statementValues = [
+      formatCsvNumber(day.statement.fixedIncome),
+      formatCsvNumber(day.statement.variableIncome),
+      formatCsvNumber(day.statement.fixedExpenses),
+      formatCsvNumber(day.statement.variableExpenses),
+      formatCsvNumber(day.statement.fixedSavings),
+      formatCsvNumber(day.statement.variableSavings),
+      formatCsvNumber(day.statement.incomeSplits),
+      formatCsvNumber(day.inflow),
+      formatCsvNumber(day.outflow),
+      formatCsvNumber(day.net),
+      formatCsvNumber(day.balance),
+      formatCsvNumber(day.savingsBalance),
+    ];
+
+    rows.push([
+      day.date, "day_summary", "", "Daily Summary", "", "", "", "",
+      "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+      ...statementValues,
+    ]);
+
+    for (const entry of day.detailEntries) {
+      const source = entry.source ?? {};
+      const categoryLabel = getCategoryLabel(categories, entry.type, source.categoryId, source.subcategoryId);
+      const [category = "", subcategory = ""] = categoryLabel.split(" / ");
+
+      rows.push([
+        day.date,
+        "detail_line",
+        getStatementBucketLabel(entry),
+        entry.name,
+        entry.type,
+        entry.cashflowClass,
+        source.kind ?? "",
+        entry.entryKind,
+        formatCsvNumber(entry.amount),
+        formatCsvNumber(source.amount),
+        formatCsvNumber(entry.cashAmount),
+        formatCsvNumber(entry.savingsAmount),
+        category,
+        subcategory,
+        source.categoryId ?? "",
+        source.subcategoryId ?? "",
+        entry.transactionId ?? source.id ?? "",
+        source.frequency ?? "",
+        source.startDate ?? "",
+        source.endDate ?? "",
+        source.active ?? "",
+        source.savingsRulePercent ?? "",
+        source.schedule?.semimonthlyDays?.join("|") ?? "",
+        ...statementValues,
+      ]);
+    }
+  }
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n") + "\n";
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let insideQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1];
+
+    if (char === '"' && insideQuotes && nextChar === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === "," && !insideQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (char === "\r" && nextChar === "\n") {
+        index += 1;
+      }
+      row.push(cell);
+      if (row.some((value) => value !== "")) {
+        rows.push(row);
+      }
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  if (row.some((value) => value !== "")) {
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function normalizeHeader(value) {
+  return value.trim().toLowerCase().replaceAll(" ", "_");
+}
+
+function csvRowsToObjects(text) {
+  const [headerRow, ...dataRows] = parseCsv(text);
+  if (!headerRow?.length) {
+    return [];
+  }
+
+  const headers = headerRow.map(normalizeHeader);
+  return dataRows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])));
+}
+
+function parseCsvAmount(value) {
+  const numeric = Number(String(value ?? "").replace(/[$,\s]/g, ""));
+  return Number.isFinite(numeric) ? Math.abs(numeric) : 0;
+}
+
+function parseCsvBoolean(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return !["false", "0", "no", "inactive"].includes(normalized);
+}
+
+function makeTransactionSignature(transaction) {
+  return [
+    String(transaction.name ?? "").trim().toLowerCase(),
+    transaction.type,
+    transaction.cashflowClass,
+    transaction.kind,
+    transaction.frequency,
+    transaction.startDate,
+    transaction.endDate,
+  ].join("|");
+}
+
+function makeStableImportId(parts) {
+  const source = parts.map((part) => String(part ?? "")).join("|");
+  let hash = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(index)) | 0;
+  }
+  return `import-${Math.abs(hash)}`;
+}
+
+function parseBudgetDate(value) {
+  const text = String(value ?? "").trim();
+  if (!text || text.toLowerCase() === "open end" || text.toLowerCase() === "null") {
+    return null;
+  }
+
+  const parts = text.split("/");
+  if (parts.length === 3) {
+    const [month, day, year] = parts.map((part) => Number(part));
+    if (Number.isFinite(month) && Number.isFinite(day) && Number.isFinite(year)) {
+      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
+}
+
+function mapBudgetRepeat(value) {
+  const repeat = String(value ?? "").trim().toLowerCase();
+  if (!repeat) {
+    return { kind: "one_time", frequency: null, supported: true };
+  }
+  if (repeat === "weekly") {
+    return { kind: "recurring", frequency: "weekly", supported: true };
+  }
+  if (repeat === "monthly") {
+    return { kind: "recurring", frequency: "monthly", supported: true };
+  }
+  if (repeat === "yearly" || repeat === "annually" || repeat === "annual") {
+    return { kind: "recurring", frequency: "yearly", supported: true };
+  }
+  if (repeat === "biweekly" || repeat === "every two weeks") {
+    return { kind: "recurring", frequency: "biweekly", supported: true };
+  }
+  if (repeat === "semimonthly" || repeat === "twice monthly") {
+    return { kind: "recurring", frequency: "semimonthly", supported: true };
+  }
+  return { kind: "recurring", frequency: null, supported: false };
+}
+
+function getBudgetType(category, amount) {
+  const normalizedCategory = String(category ?? "").toLowerCase();
+  if (normalizedCategory.includes("saving") && amount < 0) {
+    return "savings";
+  }
+  return amount >= 0 ? "income" : "expense";
+}
+
+function transactionFromBudgetCsvRow(row, rowIndex) {
+  const amount = Number(String(row.amount ?? "").replace(/[$,\s]/g, ""));
+  const startDate = parseBudgetDate(row.start_date);
+  if (!Number.isFinite(amount) || !startDate) {
+    return null;
+  }
+
+  const repeat = mapBudgetRepeat(row.repeats);
+  const type = getBudgetType(row.category, amount);
+
+  return {
+    id: makeStableImportId(["budget", rowIndex, row.category, row.memo, row.amount, row.repeats, row.start_date, row.end_date]),
+    name: row.memo || null,
+    type,
+    kind: repeat.kind,
+    cashflowClass: repeat.kind === "recurring" ? "fixed" : "variable",
+    amount: Math.abs(amount),
+    frequency: repeat.frequency,
+    startDate,
+    endDate: parseBudgetDate(row.end_date),
+    active: repeat.supported,
+    categoryId: null,
+    subcategoryId: null,
+    savingsRulePercent: null,
+    schedule: null,
+    importedCategory: row.category || null,
+    importedRepeat: row.repeats || null,
+  };
+}
+
+function isBudgetCsvFormat(rows) {
+  const first = rows[0] ?? {};
+  return "category" in first && "memo" in first && "amount" in first && "repeats" in first && "start_date" in first && "end_date" in first;
+}
+
+function extractTransactionsFromBudgetCsv(rows) {
+  return rows
+    .map((row, index) => transactionFromBudgetCsvRow(row, index))
+    .filter(Boolean);
+}
+
+function nullableCsvValue(value) {
+  return value === null || value === undefined || value === "" ? "null" : value;
+}
+
+function transactionsToImportCsv(transactions) {
+  const headers = [
+    "transaction_id", "name", "type", "kind", "cashflow_class", "amount", "frequency", "start_date", "end_date",
+    "active", "category_id", "subcategory_id", "savings_rule_percent", "semimonthly_days", "imported_category", "imported_repeat",
+  ];
+  const rows = [headers];
+
+  for (const transaction of transactions) {
+    rows.push([
+      transaction.id,
+      transaction.name,
+      transaction.type,
+      transaction.kind,
+      transaction.cashflowClass,
+      transaction.amount,
+      transaction.frequency,
+      transaction.startDate,
+      transaction.endDate,
+      transaction.active,
+      transaction.categoryId,
+      transaction.subcategoryId,
+      transaction.savingsRulePercent,
+      transaction.schedule?.semimonthlyDays?.join("|") ?? null,
+      transaction.importedCategory,
+      transaction.importedRepeat,
+    ]);
+  }
+
+  return rows.map((row) => row.map((value) => escapeCsvCell(nullableCsvValue(value))).join(",")).join("\n") + "\n";
+}
+
+function categoryNameFromLabel(label) {
+  return String(label ?? "").replace(/[^\p{L}\p{N}\s&/-]/gu, "").trim().toLowerCase();
+}
+
+function findCategoryIdByName(categories, type, label) {
+  const normalized = categoryNameFromLabel(label);
+  const category = getCategoryOptions(categories, type).find((item) => categoryNameFromLabel(item.name) === normalized || categoryNameFromLabel(`${item.icon} ${item.name}`) === normalized);
+  return category?.id ?? "";
+}
+
+function findSubcategoryIdByName(categories, type, categoryId, label) {
+  const normalized = categoryNameFromLabel(label);
+  const subcategory = getSubcategoryOptions(categories, type, categoryId).find((item) => categoryNameFromLabel(item.name) === normalized || categoryNameFromLabel(`${item.icon} ${item.name}`) === normalized);
+  return subcategory?.id ?? "";
+}
+
+function transactionFromCsvRow(row, categories) {
+  if (row.transaction_id && !row.row_type) {
+    const semimonthlyDays = String(row.semimonthly_days || "")
+      .split("|")
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value >= 1 && value <= 31);
+
+    return {
+      id: row.transaction_id,
+      name: row.name === "null" ? null : row.name,
+      type: row.type === "null" ? null : row.type,
+      kind: row.kind === "null" ? null : row.kind,
+      cashflowClass: row.cashflow_class === "null" ? null : row.cashflow_class,
+      amount: parseCsvAmount(row.amount),
+      frequency: row.frequency === "null" ? null : row.frequency,
+      startDate: row.start_date === "null" ? null : row.start_date,
+      endDate: row.end_date === "null" ? null : row.end_date,
+      active: parseCsvBoolean(row.active),
+      categoryId: row.category_id === "null" ? null : row.category_id,
+      subcategoryId: row.subcategory_id === "null" ? null : row.subcategory_id,
+      savingsRulePercent: row.savings_rule_percent === "null" ? null : Number(row.savings_rule_percent || 0),
+      schedule: semimonthlyDays.length === 2 ? { semimonthlyDays } : null,
+      importedCategory: row.imported_category === "null" ? null : row.imported_category,
+      importedRepeat: row.imported_repeat === "null" ? null : row.imported_repeat,
+    };
+  }
+
+  if ((row.row_type || "").toLowerCase() !== "detail_line") {
+    return null;
+  }
+  if ((row.entry_kind || "").toLowerCase() === "income_split") {
+    return null;
+  }
+
+  const type = row.type || (row.statement_bucket?.includes("income") ? "income" : row.statement_bucket?.includes("savings") ? "savings" : "expense");
+  if (!["income", "expense", "savings"].includes(type)) {
+    return null;
+  }
+
+  const categoryId = row.category_id || findCategoryIdByName(categories, type, row.category);
+  const subcategoryId = row.subcategory_id || findSubcategoryIdByName(categories, type, categoryId, row.subcategory);
+  const semimonthlyDays = String(row.semimonthly_days || "")
+    .split("|")
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value >= 1 && value <= 31);
+
+  return buildDraftTransaction({
+    id: row.transaction_id || crypto.randomUUID(),
+    name: row.name || "Imported transaction",
+    type,
+    kind: row.kind || "one_time",
+    cashflowClass: row.cashflow_class || "variable",
+    amount: parseCsvAmount(row.source_amount || row.amount),
+    frequency: row.frequency || "monthly",
+    startDate: row.start_date || row.date || getTodayIso(),
+    endDate: row.end_date || "",
+    active: parseCsvBoolean(row.active),
+    categoryId,
+    subcategoryId,
+    savingsRulePercent: row.savings_rule_percent === "" ? 0 : Number(row.savings_rule_percent || 0),
+    schedule: {
+      semimonthlyDays: semimonthlyDays.length === 2 ? semimonthlyDays : [1, 15],
+    },
+  });
+}
+
+function extractTransactionsFromCsv(text, categories) {
+  const rows = csvRowsToObjects(text);
+  if (isBudgetCsvFormat(rows)) {
+    return extractTransactionsFromBudgetCsv(rows);
+  }
+
+  const seen = new Set();
+  const transactions = [];
+
+  for (const row of rows) {
+    const transaction = transactionFromCsvRow(row, categories);
+    if (!transaction) {
+      continue;
+    }
+
+    const key = transaction.id || makeTransactionSignature(transaction);
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    transactions.push(transaction);
+  }
+
+  return transactions;
+}
+
 function getPageHeader(activePage, currentTimelineDay, selectedTimelineDay, forecast) {
   if (activePage === "buckets") {
     return {
@@ -326,7 +798,7 @@ function getPageHeader(activePage, currentTimelineDay, selectedTimelineDay, fore
   return {
     title: formatCurrencyCode(currentTimelineDay?.balance ?? forecast.startingBalance),
     subtitle: "Current balance",
-    titleClassName: "balance-hero",
+    titleClassName: "balance-hero home-balance-hero",
   };
 }
 
@@ -434,9 +906,21 @@ export default function App() {
   const [todayExpenseDraft, setTodayExpenseDraft] = useState({
     name: "",
     amount: "",
+    startDate: today,
+    endDate: "",
     categoryId: "",
     subcategoryId: "",
   });
+  const [todayExpenseClass, setTodayExpenseClass] = useState("variable");
+  const [todayTransactionType, setTodayTransactionType] = useState("expense");
+  const [todayFixedFrequency, setTodayFixedFrequency] = useState("monthly");
+  const [todayExpenseDistributed, setTodayExpenseDistributed] = useState(false);
+  const [todayExpenseNameFocused, setTodayExpenseNameFocused] = useState(false);
+  const [todayEditDraft, setTodayEditDraft] = useState(null);
+  const [csvExportDraft, setCsvExportDraft] = useState(null);
+  const [csvImportDraft, setCsvImportDraft] = useState(null);
+  const todayStartDateRef = useRef(null);
+  const todayEndDateRef = useRef(null);
 
   useEffect(() => {
     saveState(state);
@@ -483,12 +967,19 @@ export default function App() {
       return;
     }
 
-    if (!forecast.timeline.some((entry) => entry.date === selectedDay)) {
+    if (!selectedDay) {
+      setSelectedDay(currentTimelineDay?.date ?? forecast.timeline[0]?.date ?? "");
+      return;
+    }
+
+    const selectedDayIsInsideRange = selectedDay >= forecast.rangeStart && selectedDay <= forecast.rangeEnd;
+    if (!forecast.timeline.some((entry) => entry.date === selectedDay) && selectedDayIsInsideRange) {
       setSelectedDay(currentTimelineDay?.date ?? forecast.timeline[0]?.date ?? "");
     }
   }, [currentTimelineDay, forecast.timeline, selectedDay]);
 
   const selectedTimelineDay = forecast.timeline.find((entry) => entry.date === selectedDay) ?? currentTimelineDay ?? forecast.timeline[0];
+  const visibleSelectedDate = selectedDay || selectedTimelineDay?.date || forecast.rangeStart;
   const selectedMarkdown = selectedTimelineDay ? (forecastData.markdownByDate?.[selectedTimelineDay.date] ?? "") : "";
   const pageHeader = getPageHeader(activePage, currentTimelineDay, selectedTimelineDay, forecast);
   const transactionSummaryMap = useMemo(
@@ -496,8 +987,31 @@ export default function App() {
     [forecast.transactionSummaries],
   );
   const categoryOptions = getCategoryOptions(state.settings.categories, categoryType);
-  const todayExpenseSubcategories = getSubcategoryOptions(state.settings.categories, "expense", todayExpenseDraft.categoryId);
+  const todayExpenseSubcategories = getSubcategoryOptions(state.settings.categories, todayTransactionType, todayExpenseDraft.categoryId);
   const draftSubcategories = getSubcategoryOptions(state.settings.categories, draft.type, draft.categoryId);
+  const todayEditSubcategories = todayEditDraft ? getSubcategoryOptions(state.settings.categories, "expense", todayEditDraft.categoryId) : [];
+  const rememberedExpenseSuggestions = useMemo(() => {
+    const seenNames = new Set();
+    return state.transactions
+      .filter((transaction) => transaction.type === todayTransactionType && transaction.name)
+      .slice()
+      .reverse()
+      .map((transaction) => ({
+        transaction,
+        score: getExpenseSuggestionScore(transaction.name, todayExpenseDraft.name),
+      }))
+      .filter(({ transaction, score }) => {
+        const nameKey = transaction.name.trim().toLowerCase();
+        if (!score || seenNames.has(nameKey)) {
+          return false;
+        }
+        seenNames.add(nameKey);
+        return true;
+      })
+      .sort((left, right) => right.score - left.score || left.transaction.name.localeCompare(right.transaction.name))
+      .slice(0, 5)
+      .map(({ transaction }) => transaction);
+  }, [state.transactions, todayExpenseDraft.name, todayTransactionType]);
 
   const groupedTransactions = {
     fixedIncome: state.transactions.filter((item) => item.type === "income" && item.cashflowClass === "fixed"),
@@ -658,6 +1172,42 @@ export default function App() {
     });
   }
 
+  function handleTodayEditChange(key, value) {
+    setTodayEditDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const next = {
+        ...current,
+        [key]: value,
+      };
+
+      if (key === "categoryId") {
+        next.subcategoryId = "";
+      }
+
+      return next;
+    });
+  }
+
+  function handleTodayEditSemimonthlyDayChange(index, value) {
+    setTodayEditDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const days = [...(current.schedule?.semimonthlyDays ?? [1, 15])];
+      days[index] = Number(value);
+      return {
+        ...current,
+        schedule: {
+          semimonthlyDays: days,
+        },
+      };
+    });
+  }
+
   function resetDraft(startDate = state.settings.forecastStartDate) {
     setDraft({
       ...EMPTY_TRANSACTION,
@@ -692,17 +1242,19 @@ export default function App() {
     if (!amount) {
       return;
     }
+    const startDate = todayExpenseDistributed ? todayExpenseDraft.startDate || today : today;
+    const endDate = todayExpenseDistributed && todayExpenseDraft.endDate && todayExpenseDraft.endDate >= startDate ? todayExpenseDraft.endDate : "";
 
     const transaction = buildDraftTransaction({
       id: crypto.randomUUID(),
-      name: todayExpenseDraft.name.trim() || "Today Variable Expense",
-      type: "expense",
-      kind: "one_time",
-      cashflowClass: "variable",
+      name: todayExpenseDraft.name.trim() || `Today ${todayExpenseClass === "fixed" ? "Fixed" : "Variable"} ${getTransactionTypeTitle(todayTransactionType)}`,
+      type: todayTransactionType,
+      kind: todayExpenseClass === "fixed" ? "recurring" : "one_time",
+      cashflowClass: todayExpenseClass,
       amount,
-      frequency: "",
-      startDate: currentTimelineDay?.date ?? today,
-      endDate: "",
+      frequency: todayExpenseClass === "fixed" ? todayFixedFrequency : "",
+      startDate,
+      endDate,
       schedule: {},
       active: true,
       categoryId: todayExpenseDraft.categoryId,
@@ -717,13 +1269,302 @@ export default function App() {
     setTodayExpenseDraft({
       name: "",
       amount: "",
+      startDate: today,
+      endDate: "",
       categoryId: "",
       subcategoryId: "",
     });
+    setTodayExpenseDistributed(false);
+  }
+
+  function selectRememberedExpense(transaction) {
+    setTodayExpenseDraft((current) => ({
+      ...current,
+      name: transaction.name,
+      categoryId: transaction.categoryId || "",
+      subcategoryId: transaction.subcategoryId || "",
+    }));
+    setTodayTransactionType(transaction.type === "income" || transaction.type === "savings" ? transaction.type : "expense");
+    setTodayExpenseClass(transaction.cashflowClass === "fixed" ? "fixed" : "variable");
+    if (transaction.cashflowClass === "fixed" && transaction.frequency) {
+      setTodayFixedFrequency(transaction.frequency);
+    }
+    setTodayExpenseNameFocused(false);
+  }
+
+  function toggleTodayExpenseDistribution() {
+    setTodayExpenseDistributed((current) => {
+      const next = !current;
+      setTodayExpenseDraft((draftCurrent) => ({
+        ...draftCurrent,
+        startDate: draftCurrent.startDate || today,
+        endDate: next ? draftCurrent.endDate : "",
+      }));
+      return next;
+    });
+  }
+
+  function openDatePicker(inputRef) {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    } else {
+      input.focus();
+    }
+  }
+
+  function handleSelectedDayChange(date) {
+    if (!date) {
+      return;
+    }
+
+    setSelectedDay(date);
+
+    setState((current) => {
+      const rangeStart = forecast.rangeStart || current.settings.forecastStartDate || date;
+      const rangeEnd = forecast.rangeEnd || rangeStart;
+
+      if (date < rangeStart) {
+        return {
+          ...current,
+          settings: {
+            ...current.settings,
+            forecastStartDate: date,
+            forecastDays: getInclusiveDayCount(date, rangeEnd),
+          },
+        };
+      }
+
+      if (date > rangeEnd) {
+        return {
+          ...current,
+          settings: {
+            ...current.settings,
+            forecastDays: getInclusiveDayCount(rangeStart, date),
+          },
+        };
+      }
+
+      return current;
+    });
+  }
+
+  function expandForecastRangeForDates(startDate, endDate) {
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    setState((current) => {
+      const rangeStart = forecast.rangeStart || current.settings.forecastStartDate || startDate;
+      const rangeEnd = forecast.rangeEnd || rangeStart;
+      const nextStart = startDate < rangeStart ? startDate : rangeStart;
+      const nextEnd = endDate > rangeEnd ? endDate : rangeEnd;
+
+      if (nextStart === rangeStart && nextEnd === rangeEnd) {
+        return current;
+      }
+
+      return {
+        ...current,
+        settings: {
+          ...current.settings,
+          forecastStartDate: nextStart,
+          forecastDays: getInclusiveDayCount(nextStart, nextEnd),
+        },
+      };
+    });
+  }
+
+  function openCsvExportModal() {
+    const startDate = currentTimelineDay?.date ?? forecast.rangeStart;
+    const endDate = forecast.rangeEnd;
+    setCsvExportDraft({ startDate, endDate });
+    expandForecastRangeForDates(startDate, endDate);
+  }
+
+  function handleCsvExportDateChange(key, value) {
+    const next = {
+      ...(csvExportDraft ?? { startDate: currentTimelineDay?.date ?? forecast.rangeStart, endDate: forecast.rangeEnd }),
+      [key]: value,
+    };
+
+    if (next.startDate && next.endDate && next.endDate < next.startDate) {
+      next.endDate = next.startDate;
+    }
+
+    setCsvExportDraft(next);
+    expandForecastRangeForDates(next.startDate, next.endDate);
+  }
+
+  function downloadCsv(csv, startDate, endDate) {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `finprog_full_export_${startDate}_to_${endDate}.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function getDetailedCsvForRange(startDate, endDate) {
+    return buildDetailedRangeCsv(forecast, state.settings.categories, startDate, endDate);
+  }
+
+  function handleCsvExport(event) {
+    event.preventDefault();
+    if (!csvExportDraft?.startDate || !csvExportDraft?.endDate) {
+      return;
+    }
+
+    const csv = getDetailedCsvForRange(csvExportDraft.startDate, csvExportDraft.endDate);
+    downloadCsv(csv, csvExportDraft.startDate, csvExportDraft.endDate);
+    setCsvExportDraft(null);
+  }
+
+  function openCsvImportModal() {
+    setCsvImportDraft({
+      text: "",
+      fileName: "",
+      message: "",
+    });
+  }
+
+  function handleCsvImportText(text, fileName = "") {
+    setCsvImportDraft((current) => ({
+      ...(current ?? { text: "", fileName: "", message: "" }),
+      text,
+      fileName,
+      message: "",
+    }));
+  }
+
+  function handleCsvImportFile(file) {
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => handleCsvImportText(String(reader.result ?? ""), file.name);
+    reader.readAsText(file);
+  }
+
+  function mergeImportedTransactions(importedTransactions) {
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+    const transactions = [...state.transactions];
+    const indexById = new Map(transactions.map((transaction, index) => [transaction.id, index]));
+    const indexBySignature = new Map(transactions.map((transaction, index) => [makeTransactionSignature(transaction), index]));
+
+    for (const transaction of importedTransactions) {
+      const signature = makeTransactionSignature(transaction);
+      const existingIndex = indexById.has(transaction.id) ? indexById.get(transaction.id) : indexBySignature.get(signature);
+
+      if (existingIndex === undefined) {
+        transactions.push(transaction);
+        indexById.set(transaction.id, transactions.length - 1);
+        indexBySignature.set(signature, transactions.length - 1);
+        added += 1;
+      } else if (JSON.stringify(transactions[existingIndex]) !== JSON.stringify(transaction)) {
+        transactions[existingIndex] = {
+          ...transactions[existingIndex],
+          ...transaction,
+          id: transactions[existingIndex].id,
+        };
+        updated += 1;
+      } else {
+        skipped += 1;
+      }
+    }
+
+    setState((current) => ({ ...current, transactions }));
+
+    return { added, updated, skipped };
+  }
+
+  function handleCsvImport(event) {
+    event.preventDefault();
+    const text = csvImportDraft?.text?.trim() ?? "";
+    if (!text) {
+      setCsvImportDraft((current) => ({ ...(current ?? { text: "", fileName: "", message: "" }), message: "Choose or paste a CSV first." }));
+      return;
+    }
+
+    try {
+      const importedTransactions = extractTransactionsFromCsv(text, state.settings.categories);
+      if (!importedTransactions.length) {
+        setCsvImportDraft((current) => ({ ...(current ?? { text: "", fileName: "", message: "" }), message: "No transaction detail lines were found in that CSV." }));
+        return;
+      }
+
+      const result = mergeImportedTransactions(importedTransactions);
+      setCsvImportDraft((current) => ({
+        ...(current ?? { text: "", fileName: "", message: "" }),
+        message: `Merged ${importedTransactions.length} transactions: ${result.added} added, ${result.updated} updated, ${result.skipped} unchanged.`,
+      }));
+    } catch (error) {
+      setCsvImportDraft((current) => ({
+        ...(current ?? { text: "", fileName: "", message: "" }),
+        message: error instanceof Error ? error.message : "Could not import that CSV.",
+      }));
+    }
+  }
+
+  function handleCsvConvertDownload() {
+    const text = csvImportDraft?.text?.trim() ?? "";
+    if (!text) {
+      setCsvImportDraft((current) => ({ ...(current ?? { text: "", fileName: "", message: "" }), message: "Choose or paste a CSV first." }));
+      return;
+    }
+
+    const rows = csvRowsToObjects(text);
+    if (!isBudgetCsvFormat(rows)) {
+      setCsvImportDraft((current) => ({ ...(current ?? { text: "", fileName: "", message: "" }), message: "That CSV is already in a FinProg-style format or uses unknown headers." }));
+      return;
+    }
+
+    const convertedTransactions = extractTransactionsFromBudgetCsv(rows);
+    const csv = transactionsToImportCsv(convertedTransactions);
+    downloadCsv(csv, "converted", "budget");
+    setCsvImportDraft((current) => ({
+      ...(current ?? { text: "", fileName: "", message: "" }),
+      message: `Converted ${convertedTransactions.length} rows into FinProg import CSV format.`,
+    }));
   }
 
   function handleEditTransaction(transaction) {
     setDraft(createDraftFromTransaction(transaction));
+  }
+
+  function handleEditTodayLine(entry) {
+    const transaction = state.transactions.find((item) => item.id === entry.transactionId);
+    if (!transaction) {
+      return;
+    }
+
+    setTodayEditDraft(createDraftFromTransaction(transaction));
+  }
+
+  function handleSaveTodayEdit(event) {
+    event.preventDefault();
+    if (!todayEditDraft) {
+      return;
+    }
+
+    const transaction = buildDraftTransaction({
+      ...todayEditDraft,
+    });
+
+    setState((current) => ({
+      ...current,
+      transactions: current.transactions.map((item) => (item.id === transaction.id ? transaction : item)),
+    }));
+    setTodayEditDraft(null);
   }
 
   function handleDeleteTransaction(id) {
@@ -749,9 +1590,19 @@ export default function App() {
     resetDraft(empty.settings.forecastStartDate);
   }
 
-  const todayVariableEntries = (currentTimelineDay?.detailEntries ?? []).filter(
-    (entry) => entry.type === "expense" && entry.cashflowClass === "variable",
+  const todayExpenseEntries = (currentTimelineDay?.detailEntries ?? []).filter(
+    (entry) => entry.type === todayTransactionType && entry.cashflowClass === todayExpenseClass && entry.entryKind !== "income_split",
   );
+  const todayExpenseClassLabel = todayExpenseClass === "fixed" ? "fixed" : "variable";
+  const todayExpenseClassTitle = todayExpenseClass === "fixed" ? "Fixed" : "Variable";
+  const todayTransactionTypeTitle = getTransactionTypeTitle(todayTransactionType);
+  const todayTransactionTypePlural = getTransactionTypePlural(todayTransactionType);
+  const csvExportRangeReady = csvExportDraft
+    ? csvExportDraft.startDate >= forecast.rangeStart && csvExportDraft.endDate <= forecast.rangeEnd
+    : true;
+  const csvExportDayCount = csvExportDraft
+    ? forecast.timeline.filter((day) => day.date >= csvExportDraft.startDate && day.date <= csvExportDraft.endDate).length
+    : 0;
 
   return (
     <div className="studio-shell">
@@ -781,20 +1632,17 @@ export default function App() {
       <main className="app-stack">
         {activePage === "home" ? (
           <section className="panel today-panel">
-            <div className="panel-heading">
-              <div>
-                <span className="section-tag">Today</span>
-                <h2>Current balance</h2>
-              </div>
-              <p className="subtle">This balance uses the current forecast day, not the opening scenario balance.</p>
-            </div>
-
             <div className="metric-grid today-metric-grid">
-              <MetricCard label="Current Balance" value={formatCurrency(currentTimelineDay?.balance ?? forecast.startingBalance)} tone="primary" />
-              <MetricCard label="Savings Balance" value={formatCurrency(currentTimelineDay?.savingsBalance ?? forecast.startingSavingsBalance)} tone="income-soft" />
               <MetricCard label="Day Net" value={formatSignedCurrency(currentTimelineDay?.net ?? 0)} tone={(currentTimelineDay?.net ?? 0) >= 0 ? "income" : "expense"} />
               <MetricCard label="Savings Added Today" value={formatCurrency(currentTimelineDay?.savingsNet ?? 0)} tone="income" />
               <MetricCard label="Variable Expenses Today" value={formatCurrency(currentTimelineDay?.statement.variableExpenses ?? 0)} tone="expense" />
+              <article className="metric-card action-card tone-neutral">
+                <span>Actions</span>
+                <div className="action-card-buttons">
+                  <button type="button" onClick={openCsvExportModal}>Export CSV</button>
+                  <button className="ghost" type="button" onClick={openCsvImportModal}>Import CSV</button>
+                </div>
+              </article>
             </div>
 
             <div className="today-grid">
@@ -802,29 +1650,51 @@ export default function App() {
                 <div className="panel-heading compact">
                   <div>
                     <span className="section-tag">Quick Add</span>
-                    <h3>Add today&apos;s variable expense</h3>
+                    <div className="transaction-type-toggle" aria-label="Today transaction type">
+                      <button className={todayTransactionType === "expense" ? "nav-pill is-active" : "nav-pill"} onClick={() => setTodayTransactionType("expense")} type="button">Expense</button>
+                      <button className={todayTransactionType === "income" ? "nav-pill is-active" : "nav-pill"} onClick={() => setTodayTransactionType("income")} type="button">Income</button>
+                      <button className={todayTransactionType === "savings" ? "nav-pill is-active" : "nav-pill"} onClick={() => setTodayTransactionType("savings")} type="button">Savings</button>
+                    </div>
+                  </div>
+                  <div className="expense-class-toggle" aria-label="Today expense type">
+                    <button className={todayExpenseClass === "variable" ? "nav-pill is-active" : "nav-pill"} onClick={() => setTodayExpenseClass("variable")} type="button">Variable</button>
+                    <button className={todayExpenseClass === "fixed" ? "nav-pill is-active" : "nav-pill"} onClick={() => setTodayExpenseClass("fixed")} type="button">Fixed</button>
                   </div>
                 </div>
 
-                <form className="today-expense-form" onSubmit={handleAddTodayExpense}>
-                  <label>
-                    <span>Expense name</span>
-                    <input value={todayExpenseDraft.name} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Coffee, groceries, gas..." />
+                <form className="today-expense-form quick-add-form" onSubmit={handleAddTodayExpense}>
+                  <label className="quick-add-name expense-name-field">
+                    <span>{todayTransactionTypeTitle} name</span>
+                    <input value={todayExpenseDraft.name} onFocus={() => setTodayExpenseNameFocused(true)} onBlur={() => setTodayExpenseNameFocused(false)} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, name: event.target.value }))} placeholder={todayTransactionType === "income" ? "Paycheck, bonus, reimbursement..." : todayTransactionType === "savings" ? "Emergency fund, goal transfer..." : "Coffee, groceries, gas..."} autoComplete="off" />
+                    {todayExpenseNameFocused && rememberedExpenseSuggestions.length ? (
+                      <div className="expense-suggestion-list">
+                        {rememberedExpenseSuggestions.map((transaction) => (
+                          <button key={transaction.id} className="expense-suggestion" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectRememberedExpense(transaction)}>
+                            <span>{transaction.name}</span>
+                            <small>{getCategoryLabel(state.settings.categories, transaction.type, transaction.categoryId, transaction.subcategoryId)}</small>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </label>
-                  <label>
+                  <label className="quick-add-amount">
                     <span>Amount</span>
-                    <input type="number" min="0" step="0.01" value={todayExpenseDraft.amount} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" />
+                    <div className="amount-control">
+                      <span className="amount-addon">$</span>
+                      <input type="number" min="0" step="0.01" value={todayExpenseDraft.amount} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" />
+                      <span className="amount-addon amount-currency">USD</span>
+                    </div>
                   </label>
-                  <label>
+                  <label className="quick-add-category">
                     <span>Category</span>
                     <select value={todayExpenseDraft.categoryId} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, categoryId: event.target.value, subcategoryId: "" }))}>
                       <option value="">Choose category</option>
-                      {getCategoryOptions(state.settings.categories, "expense").map((category) => (
+                      {getCategoryOptions(state.settings.categories, todayTransactionType).map((category) => (
                         <option key={category.id} value={category.id}>{category.icon} {category.name}</option>
                       ))}
                     </select>
                   </label>
-                  <label>
+                  <label className="quick-add-subcategory">
                     <span>Subcategory</span>
                     <select value={todayExpenseDraft.subcategoryId} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, subcategoryId: event.target.value }))}>
                       <option value="">Choose subcategory</option>
@@ -833,8 +1703,42 @@ export default function App() {
                       ))}
                     </select>
                   </label>
+                  <div className="distribution-row">
+                    <button className={todayExpenseDistributed ? "distribution-toggle is-active" : "distribution-toggle"} type="button" onClick={toggleTodayExpenseDistribution}>Distribution</button>
+                    {todayExpenseClass === "fixed" ? (
+                      <label className="fixed-frequency-field">
+                        <span>Frequency</span>
+                        <select value={todayFixedFrequency} onChange={(event) => setTodayFixedFrequency(event.target.value)}>
+                          {frequencyOptions.map((option) => <option key={option} value={option}>{formatFrequencyOption(option)}</option>)}
+                        </select>
+                      </label>
+                    ) : null}
+                  </div>
+                  {todayExpenseDistributed ? (
+                    <div className="date-range-grid">
+                      <div className="date-field">
+                        <div className="field-label-row">
+                          <span>{todayExpenseClass === "fixed" ? "Start date" : "Distribution start"}</span>
+                          <button className="today-mini-button" type="button" onClick={() => setTodayExpenseDraft((current) => ({ ...current, startDate: today, endDate: current.endDate && current.endDate < today ? "" : current.endDate }))}>Today</button>
+                        </div>
+                        <div className="date-input-shell">
+                          <input ref={todayStartDateRef} type="date" value={todayExpenseDraft.startDate} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, startDate: event.target.value, endDate: current.endDate && current.endDate < event.target.value ? "" : current.endDate }))} />
+                          <button className="calendar-button" type="button" onClick={() => openDatePicker(todayStartDateRef)} aria-label="Pick start date" />
+                        </div>
+                      </div>
+                      <div className="date-field">
+                        <div className="field-label-row">
+                          <span>{todayExpenseClass === "fixed" ? "End date" : "Distribution end"}</span>
+                        </div>
+                        <div className="date-input-shell">
+                          <input ref={todayEndDateRef} type="date" min={todayExpenseDraft.startDate} value={todayExpenseDraft.endDate} onChange={(event) => setTodayExpenseDraft((current) => ({ ...current, endDate: event.target.value }))} />
+                          <button className="calendar-button" type="button" onClick={() => openDatePicker(todayEndDateRef)} aria-label="Pick end date" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="form-actions">
-                    <button type="submit">Add Expense</button>
+                    <button type="submit">Add {todayExpenseClassTitle} {todayTransactionTypeTitle}</button>
                   </div>
                 </form>
               </section>
@@ -843,24 +1747,28 @@ export default function App() {
                 <div className="panel-heading compact">
                   <div>
                     <span className="section-tag">Today&apos;s Lines</span>
-                    <h3>{currentTimelineDay?.date ?? today}</h3>
+                    <h3>{todayExpenseClassTitle} {todayTransactionTypePlural} on {currentTimelineDay?.date ?? today}</h3>
                   </div>
                 </div>
 
-                {todayVariableEntries.length ? (
+                {todayExpenseEntries.length ? (
                   <div className="today-line-list">
-                    {todayVariableEntries.map((entry) => (
+                    {todayExpenseEntries.map((entry) => (
                       <article className="today-line-item" key={entry.id}>
                         <div>
                           <span>{entry.name}</span>
-                          <small>{getCategoryLabel(state.settings.categories, "expense", entry.source?.categoryId, entry.source?.subcategoryId)}</small>
+                          <small>{getCategoryLabel(state.settings.categories, entry.type, entry.source?.categoryId, entry.source?.subcategoryId)}</small>
                         </div>
                         <strong>{formatSignedCurrency(entry.amount)}</strong>
+                        <div className="today-line-actions">
+                          <button className="ghost small" type="button" onClick={() => handleEditTodayLine(entry)}>Edit</button>
+                          <button className="ghost small danger" type="button" onClick={() => handleDeleteTransaction(entry.transactionId)}>Delete</button>
+                        </div>
                       </article>
                     ))}
                   </div>
                 ) : (
-                  <div className="empty-block">No variable expenses are hitting the current day yet.</div>
+                  <div className="empty-block">No {todayExpenseClassLabel} {todayTransactionTypePlural} are hitting the current day yet.</div>
                 )}
               </section>
             </div>
@@ -872,7 +1780,7 @@ export default function App() {
             <div className="panel-heading">
               <div>
                 <span className="section-tag">Buckets</span>
-                <h2>Daily buckets for {selectedTimelineDay?.date ?? forecast.rangeStart}</h2>
+                <h2>Daily buckets for {selectedTimelineDay?.date ?? visibleSelectedDate}</h2>
               </div>
               <p className="subtle">Pick any forecast day and inspect the lines for that day in the same bucket layout.</p>
             </div>
@@ -880,7 +1788,7 @@ export default function App() {
             <div className="bucket-day-toolbar">
               <label className="bucket-day-picker">
                 <span>View day</span>
-                <input type="date" value={selectedTimelineDay?.date ?? ""} min={forecast.rangeStart} max={forecast.rangeEnd} onChange={(event) => setSelectedDay(event.target.value)} />
+                <input type="date" value={visibleSelectedDate} onChange={(event) => handleSelectedDayChange(event.target.value)} />
               </label>
               <MetricCard label="Current Balance" value={formatCurrency(selectedTimelineDay?.balance ?? 0)} tone="primary" />
               <MetricCard label="Day Net" value={formatSignedCurrency(selectedTimelineDay?.net ?? 0)} tone={(selectedTimelineDay?.net ?? 0) >= 0 ? "income" : "expense"} />
@@ -921,7 +1829,7 @@ export default function App() {
               <div className="panel-heading">
                 <div>
                   <span className="section-tag">Savings Buckets</span>
-                  <h2>Daily savings buckets for {selectedTimelineDay?.date ?? forecast.rangeStart}</h2>
+                  <h2>Daily savings buckets for {selectedTimelineDay?.date ?? visibleSelectedDate}</h2>
                 </div>
                 <p className="subtle">Savings has its own view so we can inspect direct contributions separately from income split diversions.</p>
               </div>
@@ -929,7 +1837,7 @@ export default function App() {
               <div className="bucket-day-toolbar">
                 <label className="bucket-day-picker">
                   <span>View day</span>
-                  <input type="date" value={selectedTimelineDay?.date ?? ""} min={forecast.rangeStart} max={forecast.rangeEnd} onChange={(event) => setSelectedDay(event.target.value)} />
+                  <input type="date" value={visibleSelectedDate} onChange={(event) => handleSelectedDayChange(event.target.value)} />
                 </label>
                 <MetricCard label="Savings Balance" value={formatCurrency(selectedTimelineDay?.savingsBalance ?? 0)} tone="income" />
                 <MetricCard label="Savings Added" value={formatCurrency(selectedTimelineDay?.savingsNet ?? 0)} tone="income-soft" />
@@ -1068,7 +1976,7 @@ export default function App() {
                       <label><span>Savings Rule %</span><input type="number" min="0" max="100" step="0.01" value={draft.savingsRulePercent || 0} onChange={(event) => handleDraftChange("savingsRulePercent", event.target.value)} /></label>
                     ) : null}
                     {draft.kind === "recurring" ? (
-                      <label><span>Frequency</span><select value={draft.frequency} onChange={(event) => handleDraftChange("frequency", event.target.value)}>{frequencyOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+                      <label><span>Frequency</span><select value={draft.frequency} onChange={(event) => handleDraftChange("frequency", event.target.value)}>{frequencyOptions.map((option) => <option key={option} value={option}>{formatFrequencyOption(option)}</option>)}</select></label>
                     ) : null}
                     <label><span>Category</span><select value={draft.categoryId} onChange={(event) => handleDraftChange("categoryId", event.target.value)}><option value="">Choose category</option>{getCategoryOptions(state.settings.categories, draft.type).map((category) => <option key={category.id} value={category.id}>{category.icon} {category.name}</option>)}</select></label>
                     <label><span>Subcategory</span><select value={draft.subcategoryId} onChange={(event) => handleDraftChange("subcategoryId", event.target.value)}><option value="">Choose subcategory</option>{draftSubcategories.map((subcategory) => <option key={subcategory.id} value={subcategory.id}>{subcategory.icon} {subcategory.name}</option>)}</select></label>
@@ -1177,7 +2085,7 @@ export default function App() {
                     <label><span>Starting Balance</span><input type="number" step="0.01" value={state.settings.startingBalance} onChange={(event) => updateSettings("startingBalance", Number(event.target.value))} /></label>
                     <label><span>Starting Savings Balance</span><input type="number" step="0.01" value={state.settings.startingSavingsBalance ?? 0} onChange={(event) => updateSettings("startingSavingsBalance", Number(event.target.value))} /></label>
                     <label><span>Forecast Start</span><input type="date" value={state.settings.forecastStartDate} onChange={(event) => updateSettings("forecastStartDate", event.target.value)} /></label>
-                    <label><span>Forecast Days</span><input type="number" min="7" max="366" value={state.settings.forecastDays} onChange={(event) => updateSettings("forecastDays", Number(event.target.value))} /></label>
+                    <label><span>Forecast Days</span><input type="number" min="7" value={state.settings.forecastDays} onChange={(event) => updateSettings("forecastDays", Number(event.target.value))} /></label>
                   </div>
                 ) : null}
 
@@ -1196,6 +2104,111 @@ export default function App() {
           </section>
         ) : null}
       </main>
+      {todayEditDraft ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setTodayEditDraft(null)}>
+          <section className="today-edit-modal" role="dialog" aria-modal="true" aria-labelledby="today-edit-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-heading compact">
+              <div>
+                <span className="section-tag">Edit Expense</span>
+                <h2 id="today-edit-title">Refine today&apos;s line</h2>
+              </div>
+              <button className="ghost small" type="button" onClick={() => setTodayEditDraft(null)}>Close</button>
+            </div>
+
+            <form className="today-edit-grid" onSubmit={handleSaveTodayEdit}>
+              <label><span>Name</span><input value={todayEditDraft.name} onChange={(event) => handleTodayEditChange("name", event.target.value)} required /></label>
+              <label><span>Class</span><select value={todayEditDraft.cashflowClass} onChange={(event) => handleTodayEditChange("cashflowClass", event.target.value)}><option value="fixed">Fixed</option><option value="variable">Variable</option></select></label>
+              <label><span>Kind</span><select value={todayEditDraft.kind} onChange={(event) => handleTodayEditChange("kind", event.target.value)}><option value="recurring">Recurring</option><option value="one_time">One-Time</option></select></label>
+              <label><span>Amount</span><input type="number" min="0" step="0.01" value={todayEditDraft.amount} onChange={(event) => handleTodayEditChange("amount", event.target.value)} required /></label>
+              {todayEditDraft.kind === "recurring" ? (
+                <label><span>Frequency</span><select value={todayEditDraft.frequency} onChange={(event) => handleTodayEditChange("frequency", event.target.value)}>{frequencyOptions.map((option) => <option key={option} value={option}>{formatFrequencyOption(option)}</option>)}</select></label>
+              ) : null}
+              <label><span>Category</span><select value={todayEditDraft.categoryId} onChange={(event) => handleTodayEditChange("categoryId", event.target.value)}><option value="">Choose category</option>{getCategoryOptions(state.settings.categories, "expense").map((category) => <option key={category.id} value={category.id}>{category.icon} {category.name}</option>)}</select></label>
+              <label><span>Subcategory</span><select value={todayEditDraft.subcategoryId} onChange={(event) => handleTodayEditChange("subcategoryId", event.target.value)}><option value="">Choose subcategory</option>{todayEditSubcategories.map((subcategory) => <option key={subcategory.id} value={subcategory.id}>{subcategory.icon} {subcategory.name}</option>)}</select></label>
+              <label><span>Start Date</span><input type="date" value={todayEditDraft.startDate} onChange={(event) => handleTodayEditChange("startDate", event.target.value)} required /></label>
+              <label><span>End Date</span><input type="date" min={todayEditDraft.startDate} value={todayEditDraft.endDate} onChange={(event) => handleTodayEditChange("endDate", event.target.value)} /></label>
+              {todayEditDraft.kind === "recurring" && todayEditDraft.frequency === "semimonthly" ? (
+                <div className="full-span semimonthly-grid">
+                  <label><span>Semimonthly Day One</span><input type="number" min="1" max="31" value={todayEditDraft.schedule.semimonthlyDays[0]} onChange={(event) => handleTodayEditSemimonthlyDayChange(0, event.target.value)} /></label>
+                  <label><span>Semimonthly Day Two</span><input type="number" min="1" max="31" value={todayEditDraft.schedule.semimonthlyDays[1]} onChange={(event) => handleTodayEditSemimonthlyDayChange(1, event.target.value)} /></label>
+                </div>
+              ) : null}
+              <label className="toggle-row full-span"><input type="checkbox" checked={todayEditDraft.active} onChange={(event) => handleTodayEditChange("active", event.target.checked)} /><span>Keep this line active</span></label>
+              <div className="form-actions full-span">
+                <button type="submit">Save Expense</button>
+                <button className="ghost" type="button" onClick={() => setTodayEditDraft(null)}>Cancel</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+      {csvExportDraft ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setCsvExportDraft(null)}>
+          <section className="today-edit-modal export-csv-modal" role="dialog" aria-modal="true" aria-labelledby="csv-export-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-heading compact">
+              <div>
+                <span className="section-tag">Export CSV</span>
+                <h2 id="csv-export-title">Full date range export</h2>
+              </div>
+              <button className="ghost small" type="button" onClick={() => setCsvExportDraft(null)}>Close</button>
+            </div>
+
+            <form className="export-csv-grid" onSubmit={handleCsvExport}>
+              <label>
+                <span>Start Date</span>
+                <input type="date" value={csvExportDraft.startDate} onChange={(event) => handleCsvExportDateChange("startDate", event.target.value)} required />
+              </label>
+              <label>
+                <span>End Date</span>
+                <input type="date" min={csvExportDraft.startDate} value={csvExportDraft.endDate} onChange={(event) => handleCsvExportDateChange("endDate", event.target.value)} required />
+              </label>
+              <div className="export-summary full-span">
+                <strong>{csvExportDayCount} days ready</strong>
+                <p>This file includes daily summary rows plus every income, expense, savings, and income-split detail line in the selected range.</p>
+                {!csvExportRangeReady ? <small>Expanding the forecast range. Try Export CSV again in a moment.</small> : null}
+              </div>
+              <div className="form-actions full-span">
+                <button type="submit" disabled={!csvExportRangeReady}>Export CSV</button>
+                <button className="ghost" type="button" onClick={() => setCsvExportDraft(null)}>Cancel</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+      {csvImportDraft ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setCsvImportDraft(null)}>
+          <section className="today-edit-modal import-csv-modal" role="dialog" aria-modal="true" aria-labelledby="csv-import-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-heading compact">
+              <div>
+                <span className="section-tag">Import CSV</span>
+                <h2 id="csv-import-title">Merge transactions</h2>
+              </div>
+              <button className="ghost small" type="button" onClick={() => setCsvImportDraft(null)}>Close</button>
+            </div>
+
+            <form className="import-csv-grid" onSubmit={handleCsvImport}>
+              <label className="full-span">
+                <span>Choose CSV</span>
+                <input type="file" accept=".csv,text/csv" onChange={(event) => handleCsvImportFile(event.target.files?.[0])} />
+              </label>
+              <label className="full-span">
+                <span>CSV Text</span>
+                <textarea value={csvImportDraft.text} onChange={(event) => handleCsvImportText(event.target.value, csvImportDraft.fileName)} placeholder="Paste a FinProg CSV export here..." />
+              </label>
+              <div className="export-summary full-span">
+                <strong>{csvImportDraft.fileName || "Ready for a CSV"}</strong>
+                <p>Import reads transaction detail rows, skips generated income-split rows, and merges by transaction ID or matching transaction shape.</p>
+                {csvImportDraft.message ? <small>{csvImportDraft.message}</small> : null}
+              </div>
+              <div className="form-actions full-span">
+                <button type="submit">Import CSV</button>
+                <button className="ghost" type="button" onClick={handleCsvConvertDownload}>Download Converted CSV</button>
+                <button className="ghost" type="button" onClick={() => setCsvImportDraft(null)}>Done</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1258,6 +2271,16 @@ function BucketPanel({ title, items, categories, summaries, onEdit, onDelete, to
 }
 
 function DailyBucketPanel({ title, items, tone, categories }) {
+  function getEntryKindLabel(item) {
+    if (item.entryKind === "one_time") {
+      return "One-time";
+    }
+    if (item.entryKind === "distributed_range") {
+      return "Distributed range";
+    }
+    return "Daily recurring allocation";
+  }
+
   return (
     <section className={`bucket-panel tone-${tone}`}>
       <header>
@@ -1270,7 +2293,7 @@ function DailyBucketPanel({ title, items, tone, categories }) {
             <article key={item.id} className="bucket-item">
               <div>
                 <h4>{item.name}</h4>
-                <p>{item.entryKind === "one_time" ? "One-time" : "Daily recurring allocation"}</p>
+                <p>{getEntryKindLabel(item)}</p>
                 <small>{getCategoryLabel(categories, item.type, item.source?.categoryId, item.source?.subcategoryId)}</small>
               </div>
               <div className="bucket-meta">

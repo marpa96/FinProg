@@ -19,7 +19,11 @@ def format_amount(value: float) -> str:
 
 
 def format_entry_label(entry: dict) -> str:
-    return f"{entry['name']} (one-time)" if entry.get("entryKind") == "one_time" else entry["name"]
+    if entry.get("entryKind") == "one_time":
+        return f"{entry['name']} (one-time)"
+    if entry.get("entryKind") == "distributed_range":
+        return f"{entry['name']} (distributed)"
+    return entry["name"]
 
 
 def filter_statement_entries(day: dict, bucket_key: str) -> list[dict]:
@@ -135,4 +139,3 @@ def day_to_markdown(forecast: dict, day: dict) -> str:
         f"Previous day closing balance rolls into {day['date']}, then the day's net of {format_signed_amount(day['net'])} produces a closing balance of {format_amount(day['balance'])} while savings move by {format_amount(day['savingsNet'])} to {format_amount(day['savingsBalance'])}.",
         "",
     ])
-

@@ -119,10 +119,10 @@ ID: WEB-002
 SRC: user
 STATUS: active
 TRIGGER: the web app loads its main workflow
-EXPECT: the UI presents a simple current-balance-first home view, a dedicated buckets page for viewing a selected day by bucket, and a deeper planner view
+EXPECT: the UI presents a simple current-balance-first home view, a dedicated buckets page for viewing any selected day by bucket, and a deeper planner view
 VERIFY: reg_webapp_shell
 PRIORITY: high
-NOTES: current UI is React-first and statement-oriented
+NOTES: current UI is React-first, statement-oriented, uses an atmospheric gradient workspace with translucent glass panels and softened pill controls, and expands the forecast range when a bucket date outside the current range is selected
 
 ID: WEB-003
 SRC: user
@@ -131,16 +131,16 @@ TRIGGER: the project is set up from the Python environment
 EXPECT: a small Python helper can install npm dependencies, launch the common webapp workflows, and start the web app when run with no flags
 VERIFY: reg_webapp_shell
 PRIORITY: medium
-NOTES: supports running the project from the venv
+NOTES: supports running the project from the venv; npm scripts use a cross-platform Python launcher that prefers .venv on macOS and Windows
 
 ID: WEB-004
 SRC: user
 STATUS: active
 TRIGGER: the current day is viewed in the web app
-EXPECT: the app labels the daily net as Day Net, shows current balance based on the current forecast day rather than the opening balance, and lets the user add a variable expense for today
+EXPECT: the app labels the daily net as Day Net, shows the home balance prominently from the current forecast day, lets the user quick-add a fixed or variable expense, income, or savings line with expense and variable selected by default, suggests remembered matching names, supports optional date ranges for quick-add lines, gives fixed lines a frequency selector, exports full date-range CSV from a popup, imports CSV by merging transaction detail rows into the workspace, converts Category/Memo/Amount/Repeats/Start date/End date budget CSVs into FinProg import rows with nulls for unknown fields, and lets today's lines be edited in a popup or deleted
 VERIFY: reg_webapp_shell
 PRIORITY: high
-NOTES: keeps the landing view focused on today's cash
+NOTES: keeps the landing view focused on today's cash; the quick-add card has expense/income/savings and fixed/variable toggles, fixed frequency selector, remembered suggestions, start/end date fields, delete buttons on today's lines, a blurred-backdrop edit modal, and an actions card with full-detail CSV export plus CSV import merge including TodaysBudget-style conversion
 
 ID: WEB-005
 SRC: user
