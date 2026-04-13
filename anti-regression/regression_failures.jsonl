@@ -30,3 +30,4 @@
 {"timestamp_utc": "2026-04-13T22:37:12.412540+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}
 {"timestamp_utc": "2026-04-13T22:43:19.191521+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}
 {"timestamp_utc": "2026-04-13T22:52:28.423326+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}
+{"timestamp_utc": "2026-04-13T22:59:48.704860+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}

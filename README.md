@@ -54,6 +54,10 @@ npm run regression
 - Export helpers in [finprog_engine/forecast_io.py](./finprog_engine/forecast_io.py)
 - Python API in [app.py](./app.py)
 - React app shell in [src/App.jsx](./src/App.jsx)
+- Extraction pipeline packages:
+  - [extractors](./extractors): one module per source/type; pull raw information and preserve source context
+  - [transformers](./transformers): one module per conversion; normalize extracted data into FinProg-useful structures, leaving unknown values as `None`
+  - [exporters](./exporters): one module per target output; serialize normalized data without mutating app state
 - Input normalization and validation for settings and transactions
 - Recurring schedule generation for weekly, biweekly, semimonthly, monthly, and yearly items
 - Forecast summaries for scheduled totals, daily normalized cashflow, and negative-balance risk
