@@ -1,0 +1,5 @@
+{"timestamp_utc": "2026-04-07T03:55:56.989769+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}
+{"timestamp_utc": "2026-04-07T03:55:57.615713+00:00", "script": "reg_contract_regression_system", "returncode": 1, "ledger_ids": [], "artifact": "anti-regression/regression_artifacts/reg_contract_regression_system__run.txt"}
+{"timestamp_utc": "2026-04-07T03:55:57.615713+00:00", "script": "reg_ledger_sync", "returncode": 20, "ledger_ids": ["META-001", "REG-003"], "artifact": "anti-regression/regression_artifacts/reg_ledger_sync__run.txt"}
+{"timestamp_utc": "2026-04-07T03:56:22.713351+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}
+{"timestamp_utc": "2026-04-07T03:57:27.507949+00:00", "script": "reg_temp_failure_probe", "returncode": 20, "ledger_ids": ["REG-004"], "artifact": "anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt"}

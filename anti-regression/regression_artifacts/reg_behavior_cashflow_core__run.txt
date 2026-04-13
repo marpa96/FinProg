@@ -1,0 +1,9 @@
+STDOUT:
+Script: reg_behavior_cashflow_core
+Tested ledger IDs: CASH-001, CASH-002, CASH-003, CASH-004, CASH-005, CASH-006, CASH-010, CASH-011
+Expected: Python cashflow engine preserves recurring schedules, daily recurring allocations, one-time handling, cash and savings balances, supported frequencies, semimonthly short-month fallback, and income savings splits.
+Observed: Python engine schedules, balances, savings, and income split behavior all matched the expected scenarios.
+Result: PASS
+Exit code meaning: 0 = PASS
+
+STDERR:

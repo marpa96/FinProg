@@ -1,0 +1,24 @@
+# Daily Breakdown: 2026-04-18
+
+## Summary
+- Opening balance: $2414.86
+- Recurring inflow: $128.57
+- Recurring outflow: $70.33
+- One-time inflow: $0.00
+- One-time outflow: $0.00
+- Net for the day: +$58.24
+- Closing balance: $2473.10
+
+## Recurring Allocations
+- Main Job Paycheck: +$128.57
+- Rent: -$39.43
+- Electric Bill: -$3.61
+- Internet: -$2.46
+- Phone Bill: -$1.97
+- Groceries: -$22.86
+
+## One-Time Entries
+- None
+
+## Balance Flow
+Previous day closing balance rolls into 2026-04-18, then the day's net of +$58.24 produces a closing balance of $2473.10.

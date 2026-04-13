@@ -1,0 +1,14 @@
+STDOUT:
+Script: reg_temp_failure_probe
+Tested ledger IDs: REG-004
+Expected: intentional failure probe for regression logging
+[FAIL] REG-004
+Expected: intentional failure probe for regression logging
+Observed: intentional failure probe triggered
+Verifier: reg_temp_failure_probe
+Exit code: 20
+Artifact: anti-regression/regression_artifacts/reg_temp_failure_probe.txt
+Result: TEST_FAIL
+Exit code meaning: 20 = TEST_FAIL
+
+STDERR:

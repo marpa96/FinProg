@@ -1,0 +1,103 @@
+{
+  "name": "Simple household baseline",
+  "settings": {
+    "startingBalance": 1500,
+    "startingSavingsBalance": 300,
+    "forecastStartDate": "2026-04-01",
+    "forecastDays": 30
+  },
+  "transactions": [
+    {
+      "id": "job-main",
+      "name": "Main Job Paycheck",
+      "type": "income",
+      "kind": "recurring",
+      "cashflowClass": "fixed",
+      "amount": 1800,
+      "savingsRulePercent": 10,
+      "frequency": "biweekly",
+      "startDate": "2026-04-03",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    },
+    {
+      "id": "emergency-fund",
+      "name": "Emergency Fund",
+      "type": "savings",
+      "kind": "recurring",
+      "cashflowClass": "fixed",
+      "amount": 120,
+      "frequency": "monthly",
+      "startDate": "2026-04-10",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    },
+    {
+      "id": "rent",
+      "name": "Rent",
+      "type": "expense",
+      "kind": "recurring",
+      "cashflowClass": "fixed",
+      "amount": 1200,
+      "frequency": "monthly",
+      "startDate": "2026-04-01",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    },
+    {
+      "id": "electric",
+      "name": "Electric Bill",
+      "type": "expense",
+      "kind": "recurring",
+      "cashflowClass": "fixed",
+      "amount": 110,
+      "frequency": "monthly",
+      "startDate": "2026-04-12",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    },
+    {
+      "id": "internet",
+      "name": "Internet",
+      "type": "expense",
+      "kind": "recurring",
+      "cashflowClass": "fixed",
+      "amount": 75,
+      "frequency": "monthly",
+      "startDate": "2026-04-08",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    },
+    {
+      "id": "phone",
+      "name": "Phone Bill",
+      "type": "expense",
+      "kind": "recurring",
+      "cashflowClass": "fixed",
+      "amount": 60,
+      "frequency": "monthly",
+      "startDate": "2026-04-18",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    },
+    {
+      "id": "groceries",
+      "name": "Groceries",
+      "type": "expense",
+      "kind": "recurring",
+      "cashflowClass": "variable",
+      "amount": 160,
+      "frequency": "weekly",
+      "startDate": "2026-04-05",
+      "endDate": "",
+      "schedule": {},
+      "active": true
+    }
+  ]
+}

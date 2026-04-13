@@ -1,0 +1,9 @@
+STDOUT:
+Script: reg_behavior_sample_export
+Tested ledger IDs: CASH-007, CASH-008, CASH-009
+Expected: The simple household scenario stays representable as JSON input and exports a day-by-day CSV with fixed and variable statement buckets, savings balances, income split detail, and a markdown sample-day breakdown from the forecast engine.
+Observed: The sample household JSON is valid and the committed CSV and markdown day breakdown match the engine-generated exports.
+Result: PASS
+Exit code meaning: 0 = PASS
+
+STDERR:

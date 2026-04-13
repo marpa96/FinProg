@@ -1,0 +1,23 @@
+{
+  "name": "finprog-cashflow-planner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "python -m unittest discover -s tests -p test_*.py",
+    "regression": "python anti-regression/run_regression.py",
+    "export:sample": "python scripts/export_sample_forecast.py"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.5"
+  }
+}

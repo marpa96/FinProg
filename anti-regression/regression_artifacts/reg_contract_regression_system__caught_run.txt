@@ -1,0 +1,21 @@
+STDOUT:
+Regression Orchestrator Summary
+Total tests: 1
+Passes: 0
+Failures: 1
+Prereq failures: 0
+Failing ledger IDs: REG-004
+Failure log: anti-regression/regression_failures.jsonl
+Stopped early: no
+
+Script: reg_temp_failure_probe
+Return code: 20
+Ledger IDs: REG-004
+Artifact: anti-regression/regression_artifacts/reg_temp_failure_probe__run.txt
+
+
+
+STDERR:
+
+
+CODE:20

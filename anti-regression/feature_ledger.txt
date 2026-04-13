@@ -1,0 +1,224 @@
+ID: META-001
+SRC: user
+STATUS: active
+TRIGGER: any user-requested feature addition, correction, reinforcement, or refinement
+EXPECT: feature_ledger.txt is updated to reflect that behavior
+VERIFY: reg_ledger_sync
+PRIORITY: critical
+NOTES: applies only to user-mandated behavior
+
+ID: CASH-001
+SRC: user
+STATUS: active
+TRIGGER: recurring income or fixed expense is included in a forecast window
+EXPECT: actual scheduled event dates are generated inside the window
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: critical
+NOTES: covers recurring schedule generation
+
+ID: CASH-002
+SRC: user
+STATUS: active
+TRIGGER: recurring income or fixed expense is defined
+EXPECT: a normalized per-day cashflow amount is available and contributes to each day of the running balance
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: high
+NOTES: daily distribution is required for recurring items
+
+ID: CASH-003
+SRC: user
+STATUS: active
+TRIGGER: one-time income or expense is scheduled inside the forecast window
+EXPECT: it appears exactly once on the selected date
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: high
+NOTES: one-time transactions are part of v1
+
+ID: CASH-004
+SRC: user
+STATUS: active
+TRIGGER: forecast runs from a starting balance with scheduled cashflow
+EXPECT: one running balance is updated day by day from recurring daily allocations and one-time transactions
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: critical
+NOTES: single balance model only
+
+ID: CASH-010
+SRC: user
+STATUS: active
+TRIGGER: savings lines or savings rules are included in a forecast
+EXPECT: a separate savings balance is tracked alongside the daily cash balance and savings reduce spendable cash while increasing savings
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: critical
+NOTES: savings are not merged into the regular cash balance
+
+ID: CASH-011
+SRC: user
+STATUS: active
+TRIGGER: an income source has a savings rule percentage
+EXPECT: part of that income is diverted into savings, the cash balance only receives the remainder, and the diverted amount is visible as an income split
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: high
+NOTES: applies to recurring and one-time income entries
+
+ID: CASH-005
+SRC: user
+STATUS: active
+TRIGGER: recurring schedule frequency is set
+EXPECT: weekly, biweekly, semimonthly, monthly, and yearly frequencies are supported
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: high
+NOTES: common recurring frequencies only
+
+ID: CASH-006
+SRC: user
+STATUS: active
+TRIGGER: semimonthly schedule uses month-end days in short months
+EXPECT: dates clamp to the valid month length without duplicate events
+VERIFY: reg_behavior_cashflow_core
+PRIORITY: high
+NOTES: short-month fallback is required
+
+ID: CASH-007
+SRC: user
+STATUS: active
+TRIGGER: a simple household scenario is defined for internal logic work
+EXPECT: income and expenses can be represented as fixed or variable cashflow items in JSON input
+VERIFY: reg_behavior_sample_export
+PRIORITY: high
+NOTES: starts with one job and normal household bills
+
+ID: CASH-008
+SRC: user
+STATUS: active
+TRIGGER: a forecast is generated from the simple household scenario
+EXPECT: a CSV lists upcoming days split into fixed income, variable income, fixed expenses, variable expenses, fixed savings, variable savings, income splits, net, running cash balance, savings balance, and source details
+VERIFY: reg_behavior_sample_export
+PRIORITY: high
+NOTES: export is for logic inspection first
+
+ID: CASH-009
+SRC: user
+STATUS: active
+TRIGGER: a sample day is inspected from the simple household scenario
+EXPECT: a markdown file details that day as a cashflow statement with fixed and variable income, expense, savings, and income split sections plus both closing balances and source detail
+VERIFY: reg_behavior_sample_export
+PRIORITY: high
+NOTES: sample day breakdown is for logic review
+
+ID: WEB-001
+SRC: user
+STATUS: active
+TRIGGER: the planning tool is run as a web app
+EXPECT: the project builds as a Vite React app
+VERIFY: reg_webapp_shell
+PRIORITY: critical
+NOTES: replaces the earlier static browser script and is verified through the Vite build path
+
+ID: WEB-002
+SRC: user
+STATUS: active
+TRIGGER: the web app loads its main workflow
+EXPECT: the UI presents a simple current-balance-first home view, a dedicated buckets page for viewing a selected day by bucket, and a deeper planner view
+VERIFY: reg_webapp_shell
+PRIORITY: high
+NOTES: current UI is React-first and statement-oriented
+
+ID: WEB-003
+SRC: user
+STATUS: active
+TRIGGER: the project is set up from the Python environment
+EXPECT: a small Python helper can install npm dependencies, launch the common webapp workflows, and start the web app when run with no flags
+VERIFY: reg_webapp_shell
+PRIORITY: medium
+NOTES: supports running the project from the venv
+
+ID: WEB-004
+SRC: user
+STATUS: active
+TRIGGER: the current day is viewed in the web app
+EXPECT: the app labels the daily net as Day Net, shows current balance based on the current forecast day rather than the opening balance, and lets the user add a variable expense for today
+VERIFY: reg_webapp_shell
+PRIORITY: high
+NOTES: keeps the landing view focused on today's cash
+
+ID: WEB-005
+SRC: user
+STATUS: active
+TRIGGER: the web app is viewed across different times of day
+EXPECT: the app supports dark mode that follows the time of day by default and can be controlled from settings
+VERIFY: reg_webapp_shell
+PRIORITY: medium
+NOTES: time-based dark mode should not replace manual control
+
+ID: WEB-006
+SRC: user
+STATUS: active
+TRIGGER: categories are managed in the web app
+EXPECT: a settings page uses a left-side setting selector and right-side detail panel, supports editable income, expense, and savings categories with subcategories and icons, exposes default savings split percentages for income categories and subcategories, and lets today's variable expense choose a category or subcategory
+VERIFY: reg_webapp_shell
+PRIORITY: high
+NOTES: categories are user-authored and should start with a few defaults
+
+ID: WEB-007
+SRC: user
+STATUS: active
+TRIGGER: savings are viewed in the web app
+EXPECT: the UI shows a separate savings balance, fixed and variable savings buckets, and income split visibility alongside regular income and expense buckets
+VERIFY: reg_webapp_shell
+PRIORITY: high
+NOTES: savings should be visible on home, buckets, and planner surfaces
+
+ID: WEB-008
+SRC: user
+STATUS: active
+TRIGGER: the dedicated savings workflow is opened in the web app
+EXPECT: the app includes a Savings page in navigation and its shared header shows the savings balance while the page focuses on savings buckets and income splits
+VERIFY: reg_webapp_shell
+PRIORITY: high
+NOTES: savings should have its own first-class page
+
+ID: WEB-009
+SRC: user
+STATUS: active
+TRIGGER: the web app needs forecast calculations
+EXPECT: the Python engine is the true source of truth and the React app gets forecast data through the Python API instead of calculating locally in JavaScript
+VERIFY: reg_webapp_shell
+PRIORITY: critical
+NOTES: future engine extensions should land in Python first and then flow outward to the UI and API
+
+ID: REG-001
+SRC: user
+STATUS: active
+TRIGGER: regression harness is run
+EXPECT: run_regression.py executes all regression scripts in order, writes regression.log, and summarizes passes, failures, and failing ledger IDs
+VERIFY: reg_contract_regression_system
+PRIORITY: critical
+NOTES: anti-regression folder is the harness home, nested smoke runs skip self-referential verifiers, and nonzero verifier exits count as failures
+
+ID: REG-002
+SRC: user
+STATUS: active
+TRIGGER: a regression verifier reports a behavioral failure
+EXPECT: the failure is printed in the mandated block format with ledger ID, expected, observed, verifier, exit code, and artifact path
+VERIFY: reg_contract_regression_system
+PRIORITY: critical
+NOTES: output must be human and AI readable and still advertise tested ledger IDs
+
+ID: REG-003
+SRC: user
+STATUS: active
+TRIGGER: ledger, compact ledger, coverage index, and regression scripts are present
+EXPECT: they remain internally consistent and verifiers referenced by the ledger exist
+VERIFY: reg_ledger_sync
+PRIORITY: critical
+NOTES: all enforcement assets live under anti-regression and verifier failures still report ledger IDs
+
+ID: REG-004
+SRC: user
+STATUS: active
+TRIGGER: the regression harness catches a failing verifier
+EXPECT: the caught regression is appended to a persistent anti-regression failure log so past catches are visible later
+VERIFY: reg_contract_regression_system
+PRIORITY: high
+NOTES: this is a proof trail that the harness is actively catching real failures over time

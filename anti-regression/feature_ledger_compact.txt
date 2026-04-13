@@ -1,0 +1,24 @@
+META-001| user-requested changes must update ledger                                                                 | reg_ledger_sync
+CASH-001| recurring items generate scheduled events in forecast window                                              | reg_behavior_cashflow_core
+CASH-002| recurring items allocate normalized daily cashflow into each day balance                                  | reg_behavior_cashflow_core
+CASH-003| one-time items appear once on selected date                                                               | reg_behavior_cashflow_core
+CASH-004| forecast updates one running balance from daily recurring allocations and one-time entries                | reg_behavior_cashflow_core
+CASH-005| recurring frequency support includes weekly biweekly semimonthly monthly yearly                           | reg_behavior_cashflow_core
+CASH-006| semimonthly month-end dates clamp without duplicates                                                      | reg_behavior_cashflow_core
+CASH-010| savings use a separate running balance and reduce spendable cash                                          | reg_behavior_cashflow_core
+CASH-011| income savings rules divert part of income into visible income splits                                     | reg_behavior_cashflow_core
+CASH-007| sample json classifies income and expenses as fixed or variable cashflow                                  | reg_behavior_sample_export
+CASH-008| sample forecast exports statement-style daily csv with savings balances and split detail                  | reg_behavior_sample_export
+CASH-009| sample day exports markdown cashflow statement with savings and split detail                              | reg_behavior_sample_export
+WEB-001 | project builds as a vite react web app through the vite build path                                        | reg_webapp_shell
+WEB-002 | ui has a simple home page, dedicated buckets page, and deeper planner view                                | reg_webapp_shell
+WEB-003 | small python helper installs npm deps and starts the web app by default plus common workflows             | reg_webapp_shell
+WEB-004 | app shows Day Net current-day balance and quick add for today's variable expense                          | reg_webapp_shell
+WEB-005 | app supports time-based dark mode with settings control                                                   | reg_webapp_shell
+WEB-006 | settings page manages editable categories icons subcategories and income default savings split percentages| reg_webapp_shell
+WEB-007 | app shows separate savings balance plus savings and income split buckets                                  | reg_webapp_shell
+WEB-008 | app has a dedicated savings page whose header shows savings balance                                       | reg_webapp_shell
+WEB-009 | python engine is the source of truth and react fetches forecast data through the app api                  | reg_webapp_shell
+REG-001 | orchestrator runs verifiers and treats nonzero verifier exits as failures                                 | reg_contract_regression_system
+REG-002 | regression failures print the mandated block and keep tested ledger IDs visible                           | reg_contract_regression_system
+REG-003 | anti-regression ledger files coverage and verifiers stay synchronized                                     | reg_ledger_sync

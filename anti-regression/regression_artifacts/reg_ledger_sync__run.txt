@@ -1,0 +1,9 @@
+STDOUT:
+Script: reg_ledger_sync
+Tested ledger IDs: META-001, REG-003
+Expected: The canonical ledger, compact ledger, coverage index, and referenced verifier scripts stay synchronized, and ledger files are not older than the tracked code surfaces they protect.
+Observed: Ledger files, coverage index, verifiers, and modification times are synchronized.
+Result: PASS
+Exit code meaning: 0 = PASS
+
+STDERR:

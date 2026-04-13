@@ -1,0 +1,6 @@
+[FAIL] SAMPLE-001
+Expected: expected behavior
+Observed: observed behavior
+Verifier: reg_contract_regression_system
+Exit code: 20
+Artifact: regression_artifacts/sample.txt
