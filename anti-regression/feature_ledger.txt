@@ -196,6 +196,42 @@ VERIFY: reg_project_structure
 PRIORITY: medium
 NOTES: keeps source-specific import code separated from engine and transformers
 
+ID: EXT-002
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money transaction extraction is verified
+EXPECT: Rocket Money request pagination can be exercised and written as JSON output
+VERIFY: reg_project_structure
+PRIORITY: high
+NOTES: mock mode verifies request shape and JSON generation without storing credentials
+
+ID: EXT-003
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money cookie refresh uses browser-captured login request context
+EXPECT: captured Auth0 login URL, cookie, state, anonymous ID, GraphQL cookie, client version, and analytics session values can be imported from browser-copied cURLs for Rocket Money extraction
+VERIFY: reg_project_structure
+PRIORITY: high
+NOTES: live extraction still depends on fresh valid private env values and may be blocked by Auth0 anti-bot or MFA
+
+ID: EXT-004
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money authentication needs to be refreshed by code
+EXPECT: a browser-backed login helper can create or refresh a real Rocket Money session and update ROCKETMONEY_COOKIE in the private .env
+VERIFY: reg_project_structure
+PRIORITY: high
+NOTES: uses a real browser profile and still requires user completion if MFA, CAPTCHA, or challenge screens appear
+
+ID: EXT-005
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money transactions need to be updated from the local venv
+EXPECT: requirements.txt declares needed Python dependencies and main.py exposes one command that installs dependencies, refreshes browser auth, and extracts Rocket Money transaction JSON
+VERIFY: reg_project_structure
+PRIORITY: high
+NOTES: avoids manually typing pip/playwright/extractor commands for routine updates
+
 ID: REG-001
 SRC: user
 STATUS: active

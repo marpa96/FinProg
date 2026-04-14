@@ -73,6 +73,32 @@ python scripts/refresh_rocketmoney_cookie.py --output data/private/rocketmoney_r
 ```
 
 The refresh script reads `ROCKETMONEY_USERNAME` and `ROCKETMONEY_PASSWORD` from `.env`, visits `ROCKETMONEY_LOGIN_START_URL`, follows redirects to the current Auth0 form, posts the credentials, writes the new cookie header, and updates `.env`. MFA, CAPTCHA, or other anti-bot challenges still require a browser.
+
+If you captured a browser login request, put its URL, cookie header, state, and anonymous ID into `ROCKETMONEY_AUTH_LOGIN_URL`, `ROCKETMONEY_AUTH_COOKIE`, `ROCKETMONEY_AUTH_STATE`, and `ROCKETMONEY_ULP_ANONYMOUS_ID`. The refresh script will use those values to replay the current Auth0 login shape more closely.
+
+You can also paste browser-copied cURLs into `data/private/rocketmoney_login_curls.txt`, then import the useful values with:
+
+```powershell
+python scripts/import_rocketmoney_curls.py
+```
+
+If one of those cURLs is the successful `client-api.rocketmoney.com/graphql` request, the importer can fill `ROCKETMONEY_COOKIE` directly, which is the most reliable path.
+
+The `RefreshAuthToken` GraphQL request proves the browser session is valid and gives the importer active cookie/client headers. For transaction extraction specifically, the best capture is the GraphQL request whose body has `operationName` set to `TransactionsPageTransactionTable`.
+
+For the most automated auth path, use the browser-backed login helper:
+
+```powershell
+python main.py --rocketmoney-update
+```
+
+`main.py` installs Python dependencies from `requirements.txt`, installs the Playwright browser when needed, opens the browser login helper, then extracts transactions to `data/private/rocketmoney_transactions.json`. The browser helper uses a persistent profile under `data/private/`, so after the first successful login it can usually refresh cookies without pasting new cURLs. If Rocket Money shows MFA, CAPTCHA, or a risk challenge, complete it in the opened browser.
+
+For a one-page smoke run:
+
+```powershell
+python main.py --rocketmoney-update --max-pages 1 --rocketmoney-output data/private/rocketmoney_transactions_test.json
+```
 - Input normalization and validation for settings and transactions
 - Recurring schedule generation for weekly, biweekly, semimonthly, monthly, and yearly items
 - Forecast summaries for scheduled totals, daily normalized cashflow, and negative-balance risk

@@ -1,6 +1,6 @@
 import unittest
 
-from extractors.rocketmoney_graphql import RocketMoneyGraphqlExtractor
+from extractors.rocket_money import RocketMoneyGraphqlExtractor
 
 
 def page_response(start_cursor, end_cursor, has_next_page, edges):

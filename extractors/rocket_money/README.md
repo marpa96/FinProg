@@ -12,3 +12,15 @@ from extractors.rocket_money import RocketMoneyCsvExtractor
 payload = RocketMoneyCsvExtractor().extract("rocket_money_export.csv")
 print(payload.metadata)
 ```
+
+GraphQL extraction starter:
+
+```powershell
+python scripts/extract_rocketmoney_transactions.py --output data/private/rocketmoney_transactions.json
+```
+
+To verify JSON generation without live Rocket Money credentials:
+
+```powershell
+python scripts/extract_rocketmoney_transactions.py --mock --output data/private/rocketmoney_transactions_mock.json
+```

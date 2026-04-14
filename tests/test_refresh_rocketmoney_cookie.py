@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.refresh_rocketmoney_cookie import find_login_form, login_action_url, state_from_login_url
+from scripts.refresh_rocketmoney_cookie import find_login_form, headers_for_page, login_action_url, state_from_login_url
 
 
 class RefreshRocketMoneyCookieTests(unittest.TestCase):
@@ -38,6 +38,17 @@ class RefreshRocketMoneyCookieTests(unittest.TestCase):
             login_action_url("https://auth.rocketaccount.com/u/login?state=fresh", form),
             "https://auth.rocketaccount.com/u/login?state=fresh",
         )
+
+    def test_headers_for_page_includes_captured_auth_cookie(self) -> None:
+        import os
+
+        os.environ["ROCKETMONEY_AUTH_COOKIE"] = "session=private"
+        try:
+            headers = headers_for_page("https://app.rocketmoney.com/")
+            self.assertEqual(headers["cookie"], "session=private")
+            self.assertEqual(headers["referer"], "https://app.rocketmoney.com/")
+        finally:
+            os.environ.pop("ROCKETMONEY_AUTH_COOKIE", None)
 
 
 if __name__ == "__main__":

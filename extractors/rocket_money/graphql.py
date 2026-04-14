@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 from urllib import error, request
 
-from .base import ExtractedPayload
+from extractors.base import ExtractedPayload
 
 
 ROCKET_MONEY_GRAPHQL_URL = "https://client-api.rocketmoney.com/graphql"

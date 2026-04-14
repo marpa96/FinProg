@@ -10,7 +10,7 @@ Stopped early: no
 
 Script: reg_project_structure
 Return code: 0
-Ledger IDs: EXT-001
+Ledger IDs: EXT-001, EXT-002, EXT-003, EXT-004, EXT-005
 Artifact: anti-regression/regression_artifacts/reg_project_structure__run.txt
 
 Script: reg_temp_failure_probe

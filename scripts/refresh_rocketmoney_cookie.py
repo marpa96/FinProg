@@ -114,6 +114,9 @@ def headers_for_page(referer: str | None = None) -> dict[str, str]:
     }
     if referer:
         headers["referer"] = referer
+    auth_cookie = os.environ.get("ROCKETMONEY_AUTH_COOKIE")
+    if auth_cookie:
+        headers["cookie"] = auth_cookie
     return headers
 
 
@@ -150,7 +153,14 @@ def refresh_cookie(output_path: Path, env_path: Path, start_url: str | None = No
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
 
-    login_url, login_html = discover_login_page(opener, start_url)
+    captured_login_url = os.environ.get("ROCKETMONEY_AUTH_LOGIN_URL")
+    if captured_login_url:
+        login_url = captured_login_url
+        login_request = request.Request(login_url, headers=headers_for_page(referer=start_url))
+        login_response = opener.open(login_request, timeout=60)  # noqa: S310
+        login_html = login_response.read().decode("utf-8", errors="replace")
+    else:
+        login_url, login_html = discover_login_page(opener, start_url)
     form = find_login_form(login_html)
     body = build_login_body(login_url, form)
     action_url = login_action_url(login_url, form)

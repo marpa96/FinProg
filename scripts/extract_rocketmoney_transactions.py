@@ -4,6 +4,7 @@ Set ROCKETMONEY_COOKIE to the browser cookie header value from the captured
 request. Optional environment variables:
 
 - ROCKETMONEY_TRUEBILL_WEB_CLIENT_VERSION
+- ROCKETMONEY_ANALYTICS_SESSION
 - ROCKETMONEY_USER_AGENT
 """
 
@@ -21,12 +22,81 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from extractors.rocketmoney_graphql import RocketMoneyGraphqlExtractor
+from extractors.rocket_money import RocketMoneyGraphqlExtractor
 from scripts.local_env import load_env_file
 from scripts.refresh_rocketmoney_cookie import refresh_cookie
 
 
 DEFAULT_OUTPUT = Path("data/private/rocketmoney_transactions.json")
+
+
+def mock_page_response(start_cursor: str, end_cursor: str, has_next_page: bool, edges: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "data": {
+            "viewer": {
+                "transactions": {
+                    "pageInfo": {
+                        "startCursor": start_cursor,
+                        "endCursor": end_cursor,
+                        "hasNextPage": has_next_page,
+                    },
+                    "edges": edges,
+                },
+            },
+        },
+    }
+
+
+def build_mock_transport():
+    def fake_transport(payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
+        cursor = payload["variables"]["cursor"]
+        if cursor is None:
+            return mock_page_response(
+                "cursor_0",
+                "cursor_1",
+                True,
+                [
+                    {
+                        "cursor": "cursor_0",
+                        "node": {
+                            "id": "rocket_mock_0",
+                            "date": "2026-04-01",
+                            "description": "Mock Paycheck",
+                            "amount": 1800,
+                            "category": {"name": "Paychecks"},
+                        },
+                    },
+                    {
+                        "cursor": "cursor_1",
+                        "node": {
+                            "id": "rocket_mock_1",
+                            "date": "2026-04-02",
+                            "description": "Mock Groceries",
+                            "amount": -82.45,
+                            "category": {"name": "Groceries"},
+                        },
+                    },
+                ],
+            )
+        return mock_page_response(
+            "cursor_2",
+            "cursor_3",
+            False,
+            [
+                {
+                    "cursor": "cursor_2",
+                    "node": {
+                        "id": "rocket_mock_2",
+                        "date": "2026-04-03",
+                        "description": "Mock Internet",
+                        "amount": -75,
+                        "category": {"name": "Internet"},
+                    },
+                }
+            ],
+        )
+
+    return fake_transport
 
 
 def parse_header(value: str) -> tuple[str, str]:
@@ -39,7 +109,14 @@ def parse_header(value: str) -> tuple[str, str]:
 def build_headers(extra_headers: list[tuple[str, str]], refresh_if_missing: bool) -> dict[str, str]:
     cookie = os.environ.get("ROCKETMONEY_COOKIE")
     if not cookie and refresh_if_missing:
-        refresh_cookie(Path("data/private/rocketmoney_refreshed_cookies.txt"), ROOT / ".env")
+        try:
+            refresh_cookie(Path("data/private/rocketmoney_refreshed_cookies.txt"), ROOT / ".env")
+        except Exception as exc:
+            raise RuntimeError(
+                "Automatic raw HTTP cookie refresh failed. Run "
+                "`python scripts/browser_login_rocketmoney.py` to refresh cookies through a real browser, "
+                "then retry extraction with `--no-refresh`."
+            ) from exc
         cookie = os.environ.get("ROCKETMONEY_COOKIE")
 
     if not cookie:
@@ -61,6 +138,10 @@ def build_headers(extra_headers: list[tuple[str, str]], refresh_if_missing: bool
     if client_version:
         headers["x-truebill-web-client-version"] = client_version
 
+    analytics_session = os.environ.get("ROCKETMONEY_ANALYTICS_SESSION")
+    if analytics_session:
+        headers["x-analytics-session"] = analytics_session
+
     headers.update(dict(extra_headers))
     return headers
 
@@ -81,12 +162,13 @@ def should_refresh_after_failure(exc: Exception) -> bool:
 
 
 def run_extraction(args: argparse.Namespace) -> Any:
-    headers = build_headers(args.header, refresh_if_missing=not args.no_refresh)
+    headers = {"cookie": "mock"} if args.mock else build_headers(args.header, refresh_if_missing=not args.no_refresh)
     extractor = RocketMoneyGraphqlExtractor(
         headers=headers,
         page_size=args.page_size,
         start_cursor=args.start_cursor,
         max_pages=args.max_pages,
+        transport=build_mock_transport() if args.mock else None,
     )
     return extractor.extract()
 
@@ -105,6 +187,7 @@ def main() -> int:
     parser.add_argument("--page-size", type=int, default=200)
     parser.add_argument("--start-cursor", default=None)
     parser.add_argument("--max-pages", type=int, default=None)
+    parser.add_argument("--mock", action="store_true", help="Use canned responses to verify JSON generation without Rocket Money credentials.")
     parser.add_argument("--no-refresh", action="store_true", help="Do not refresh cookies when missing or expired.")
     parser.add_argument(
         "--header",

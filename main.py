@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -12,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 API_URL = "http://127.0.0.1:8001/api/health"
+REQUIREMENTS_PATH = ROOT / "requirements.txt"
 
 
 def get_npm_command() -> str:
@@ -24,6 +26,23 @@ def get_npm_command() -> str:
 def run_command(command: list[str]) -> int:
     completed = subprocess.run(command, cwd=ROOT, check=False)
     return completed.returncode
+
+
+def ensure_python_dependencies() -> int:
+    if not REQUIREMENTS_PATH.exists():
+        return 0
+
+    missing_playwright = importlib.util.find_spec("playwright") is None
+    if not missing_playwright:
+        return 0
+
+    print("Installing Python dependencies from requirements.txt...")
+    return run_command([sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_PATH)])
+
+
+def ensure_playwright_browser() -> int:
+    print("Ensuring Playwright Chromium browser is installed...")
+    return run_command([sys.executable, "-m", "playwright", "install", "chromium"])
 
 
 def start_api_server() -> subprocess.Popen[str]:
@@ -52,12 +71,17 @@ def ensure_npm_dependencies() -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="FinProg helper runner")
-    parser.add_argument("--install-only", action="store_true", help="Only install npm dependencies.")
+    parser.add_argument("--install-only", action="store_true", help="Only install Python and npm dependencies.")
     parser.add_argument("--dev", action="store_true", help="Start the Vite dev server after installing.")
     parser.add_argument("--build", action="store_true", help="Run the production build after installing.")
     parser.add_argument("--test", action="store_true", help="Run the Python source-of-truth test suite after installing.")
     parser.add_argument("--regression", action="store_true", help="Run the anti-regression harness after installing.")
     parser.add_argument("--api", action="store_true", help="Run only the Python forecast API.")
+    parser.add_argument("--rocketmoney-login", action="store_true", help="Open browser login and refresh Rocket Money cookies.")
+    parser.add_argument("--rocketmoney-update", action="store_true", help="Refresh Rocket Money cookies if needed and extract transactions.")
+    parser.add_argument("--rocketmoney-import-curls", action="store_true", help="Import Rocket Money cURL captures from data/private/rocketmoney_login_curls.txt into .env.")
+    parser.add_argument("--rocketmoney-output", default="data/private/rocketmoney_transactions.json", help="Output path for Rocket Money transaction JSON.")
+    parser.add_argument("--max-pages", type=int, default=None, help="Optional Rocket Money page limit for extraction.")
     args = parser.parse_args()
 
     try:
@@ -66,6 +90,10 @@ def main() -> int:
       print(error)
       return 1
 
+    python_install_code = ensure_python_dependencies()
+    if python_install_code != 0:
+        return python_install_code
+
     install_code = ensure_npm_dependencies()
     if install_code != 0:
         return install_code
@@ -73,6 +101,33 @@ def main() -> int:
     if args.install_only:
         print("Setup complete.")
         return 0
+
+    if args.rocketmoney_import_curls:
+        return run_command([sys.executable, "scripts/import_rocketmoney_curls.py"])
+
+    if args.rocketmoney_login:
+        browser_code = ensure_playwright_browser()
+        if browser_code != 0:
+            return browser_code
+        return run_command([sys.executable, "scripts/browser_login_rocketmoney.py"])
+
+    if args.rocketmoney_update:
+        browser_code = ensure_playwright_browser()
+        if browser_code != 0:
+            return browser_code
+        login_code = run_command([sys.executable, "scripts/browser_login_rocketmoney.py"])
+        if login_code != 0:
+            return login_code
+        extract_command = [
+            sys.executable,
+            "scripts/extract_rocketmoney_transactions.py",
+            "--no-refresh",
+            "--output",
+            args.rocketmoney_output,
+        ]
+        if args.max_pages is not None:
+            extract_command.extend(["--max-pages", str(args.max_pages)])
+        return run_command(extract_command)
 
     if args.api:
         print("Starting the Python API...")
