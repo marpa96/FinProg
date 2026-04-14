@@ -1,7 +1,7 @@
 STDOUT:
 Regression Orchestrator Summary
-Total tests: 3
-Passes: 3
+Total tests: 4
+Passes: 4
 Failures: 0
 Prereq failures: 0
 Failing ledger IDs: none
@@ -17,6 +17,11 @@ Script: reg_behavior_sample_export
 Return code: 0
 Ledger IDs: CASH-007, CASH-008, CASH-009
 Artifact: anti-regression/regression_artifacts/reg_behavior_sample_export__run.txt
+
+Script: reg_project_structure
+Return code: 0
+Ledger IDs: EXT-001
+Artifact: anti-regression/regression_artifacts/reg_project_structure__run.txt
 
 Script: reg_webapp_shell
 Return code: 0

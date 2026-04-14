@@ -19,6 +19,7 @@ WEB-006 | settings page manages editable categories icons subcategories and inco
 WEB-007 | app shows separate savings balance plus savings and income split buckets                                  | reg_webapp_shell
 WEB-008 | app has a dedicated savings page whose header shows savings balance                                       | reg_webapp_shell
 WEB-009 | python engine is the source of truth and react fetches forecast data through the app api                  | reg_webapp_shell
+EXT-001 | rocket money extractor code lives under extractors                                                        | reg_project_structure
 REG-001 | orchestrator runs verifiers and treats nonzero verifier exits as failures                                 | reg_contract_regression_system
 REG-002 | regression failures print the mandated block and keep tested ledger IDs visible                           | reg_contract_regression_system
 REG-003 | anti-regression ledger files coverage and verifiers stay synchronized                                     | reg_ledger_sync

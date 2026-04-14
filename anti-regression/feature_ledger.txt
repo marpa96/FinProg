@@ -187,6 +187,15 @@ VERIFY: reg_webapp_shell
 PRIORITY: critical
 NOTES: future engine extensions should land in Python first and then flow outward to the UI and API
 
+ID: EXT-001
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money data extraction work begins
+EXPECT: Rocket Money extractor code has its own folder under extractors
+VERIFY: reg_project_structure
+PRIORITY: medium
+NOTES: keeps source-specific import code separated from engine and transformers
+
 ID: REG-001
 SRC: user
 STATUS: active

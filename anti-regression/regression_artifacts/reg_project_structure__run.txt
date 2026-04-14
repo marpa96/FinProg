@@ -1,0 +1,9 @@
+STDOUT:
+Script: reg_project_structure
+Tested ledger IDs: EXT-001
+Expected: Rocket Money extractor code has its own folder under extractors.
+Observed: Rocket Money extractor package exists under extractors.
+Result: PASS
+Exit code meaning: 0 = PASS
+
+STDERR:

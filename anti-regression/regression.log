@@ -1,6 +1,6 @@
 Regression Orchestrator Summary
-Total tests: 5
-Passes: 5
+Total tests: 6
+Passes: 6
 Failures: 0
 Prereq failures: 0
 Failing ledger IDs: none
@@ -26,6 +26,11 @@ Script: reg_ledger_sync
 Return code: 0
 Ledger IDs: META-001, REG-003
 Artifact: anti-regression/regression_artifacts/reg_ledger_sync__run.txt
+
+Script: reg_project_structure
+Return code: 0
+Ledger IDs: EXT-001
+Artifact: anti-regression/regression_artifacts/reg_project_structure__run.txt
 
 Script: reg_webapp_shell
 Return code: 0
