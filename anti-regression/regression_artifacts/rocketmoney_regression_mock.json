@@ -1,0 +1,66 @@
+{
+  "format": "finprog.raw_extraction.v1",
+  "metadata": {
+    "completedAt": "2026-04-27T16:38:40.347780+00:00",
+    "duplicateCount": 0,
+    "operationName": "TransactionsPageTransactionTable",
+    "pageCount": 2,
+    "pageSize": 200,
+    "persistedQueryHash": "62dace281f8028f3e883ba36f7400005f396f305dcdb7fe6faeba4f9877f9c06",
+    "startedAt": "2026-04-27T16:38:40.347745+00:00",
+    "stoppedBecauseMaxPages": false,
+    "transactionCount": 3
+  },
+  "payload": {
+    "pages": [
+      {
+        "edgeCount": 2,
+        "endCursor": "cursor_1",
+        "hasNextPage": true,
+        "requestCursor": null,
+        "startCursor": "cursor_0"
+      },
+      {
+        "edgeCount": 1,
+        "endCursor": "cursor_3",
+        "hasNextPage": false,
+        "requestCursor": "cursor_1",
+        "startCursor": "cursor_2"
+      }
+    ],
+    "transactions": [
+      {
+        "_rocketMoneyCursor": "cursor_0",
+        "amount": -180000,
+        "category": {
+          "name": "Paychecks"
+        },
+        "date": "2026-04-01",
+        "description": "Mock Paycheck",
+        "id": "rocket_mock_0"
+      },
+      {
+        "_rocketMoneyCursor": "cursor_1",
+        "amount": 8245,
+        "category": {
+          "name": "Groceries"
+        },
+        "date": "2026-04-02",
+        "description": "Mock Groceries",
+        "id": "rocket_mock_1"
+      },
+      {
+        "_rocketMoneyCursor": "cursor_2",
+        "amount": 7500,
+        "category": {
+          "name": "Internet"
+        },
+        "date": "2026-04-03",
+        "description": "Mock Internet",
+        "id": "rocket_mock_2"
+      }
+    ]
+  },
+  "source_name": "Rocket Money GraphQL transactions",
+  "source_type": "rocketmoney_graphql_transactions"
+}

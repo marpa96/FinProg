@@ -1,0 +1,14 @@
+STDOUT:
+Script: reg_webapp_shell
+Tested ledger IDs: WEB-001, WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009
+Expected: The project builds as a Vite React app, the main UI source contains the expected cashflow studio sections, the Python helper exposes the common setup workflows and starts the web app by default, and the React app uses the Python engine through an API.
+[FAIL] WEB-001
+Expected: The project completes a Vite production build.
+Observed: `npm run build` exited with code 1.
+Verifier: reg_webapp_shell
+Exit code: 20
+Artifact: anti-regression/regression_artifacts/reg_webapp_shell__vite_build.txt
+Result: TEST_FAIL
+Exit code meaning: 20 = TEST_FAIL
+
+STDERR:

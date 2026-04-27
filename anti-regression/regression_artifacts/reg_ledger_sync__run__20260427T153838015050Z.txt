@@ -1,0 +1,14 @@
+STDOUT:
+Script: reg_ledger_sync
+Tested ledger IDs: META-001, REG-003
+Expected: The canonical ledger, compact ledger, coverage index, and referenced verifier scripts stay synchronized, and ledger files are not older than the tracked code surfaces they protect.
+[FAIL] META-001
+Expected: Ledger files are updated alongside meaningful user-facing code changes.
+Observed: Tracked files newer than the ledger were ['C:/Users/paom1/OneDrive/Desktop/Coding Projects/Custom Automation Scripts/Local/FinProg/anti-regression/run_regression.py', 'C:/Users/paom1/OneDrive/Desktop/Coding Projects/Custom Automation Scripts/Local/FinProg/anti-regression/regression/reg_contract_regression_system.py'].
+Verifier: reg_ledger_sync
+Exit code: 20
+Artifact: anti-regression/regression_artifacts/reg_ledger_sync__mtime_drift.txt
+Result: TEST_FAIL
+Exit code meaning: 20 = TEST_FAIL
+
+STDERR:

@@ -69,7 +69,42 @@ def display_path(path: Path) -> str:
     return path.relative_to(PROJECT_ROOT).as_posix()
 
 
-def update_coverage(results: list[RegressionResult]) -> None:
+def timestamp_slug() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+
+
+def write_text_resilient(path: Path, content: str, fallback_dir: Path | None = None) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_text(content, encoding="utf-8")
+        return path
+    except PermissionError:
+        target_dir = fallback_dir or path.parent
+        target_dir.mkdir(parents=True, exist_ok=True)
+        alternate = target_dir / f"{path.stem}__{timestamp_slug()}{path.suffix}"
+        alternate.write_text(content, encoding="utf-8")
+        return alternate
+
+
+def append_jsonl_resilient(path: Path, payloads: list[dict[str, object]], fallback_dir: Path | None = None) -> Path:
+    if not payloads:
+        return path
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = "".join(json.dumps(payload) + "\n" for payload in payloads)
+    try:
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(lines)
+        return path
+    except PermissionError:
+        target_dir = fallback_dir or path.parent
+        target_dir.mkdir(parents=True, exist_ok=True)
+        alternate = target_dir / f"{path.stem}__{timestamp_slug()}{path.suffix}"
+        alternate.write_text(lines, encoding="utf-8")
+        return alternate
+
+
+def update_coverage(results: list[RegressionResult]) -> Path:
     ledger_entries = [entry for entry in parse_ledger() if entry.get("STATUS") == "active"]
     active_ids = {entry["ID"] for entry in ledger_entries}
     failing_ids = set()
@@ -86,7 +121,8 @@ def update_coverage(results: list[RegressionResult]) -> None:
     uncovered_ids = active_ids - covered_ids - failing_ids
     partial_ids: set[str] = set()
 
-    COVERAGE_PATH.write_text(
+    return write_text_resilient(
+        COVERAGE_PATH,
         "\n".join(
             [
                 "COVERED:",
@@ -103,27 +139,28 @@ def update_coverage(results: list[RegressionResult]) -> None:
                 "",
             ]
         ),
-        encoding="utf-8",
+        fallback_dir=ARTIFACT_DIR,
     )
 
 
-def append_failure_history(results: list[RegressionResult]) -> None:
+def append_failure_history(results: list[RegressionResult]) -> Path:
     failing_results = [result for result in results if result["returncode"] != PASS]
     if not failing_results:
-        return
+        return FAILURE_LOG_PATH
 
-    FAILURE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).isoformat()
-    with FAILURE_LOG_PATH.open("a", encoding="utf-8") as handle:
-        for result in failing_results:
-            payload = {
+    payloads = []
+    for result in failing_results:
+        payloads.append(
+            {
                 "timestamp_utc": timestamp,
                 "script": result["script"],
                 "returncode": result["returncode"],
                 "ledger_ids": result["ledger_ids"],
                 "artifact": result["artifact"],
             }
-            handle.write(json.dumps(payload) + "\n")
+        )
+    return append_jsonl_resilient(FAILURE_LOG_PATH, payloads, fallback_dir=ARTIFACT_DIR)
 
 
 def main() -> int:
@@ -147,7 +184,7 @@ def main() -> int:
         )
         combined_output = f"STDOUT:\n{completed.stdout}\nSTDERR:\n{completed.stderr}"
         artifact_path = ARTIFACT_DIR / f"{script.stem}__run.txt"
-        artifact_path.write_text(combined_output, encoding="utf-8")
+        artifact_path = write_text_resilient(artifact_path, combined_output)
 
         result: RegressionResult = {
             "script": script.stem,
@@ -163,8 +200,8 @@ def main() -> int:
             stop_on_prereq = True
             break
 
-    update_coverage(results)
-    append_failure_history(results)
+    coverage_output_path = update_coverage(results)
+    failure_log_output_path = append_failure_history(results)
 
     passes = sum(1 for result in results if result["returncode"] == PASS)
     failures = sum(1 for result in results if result["returncode"] not in (PASS, PREREQ_FAIL))
@@ -185,7 +222,8 @@ def main() -> int:
         f"Failures: {failures}",
         f"Prereq failures: {prereq_failures}",
         f"Failing ledger IDs: {', '.join(failing_ledger_ids) if failing_ledger_ids else 'none'}",
-        f"Failure log: {display_path(FAILURE_LOG_PATH) if FAILURE_LOG_PATH.exists() else 'none'}",
+        f"Coverage index: {display_path(coverage_output_path) if coverage_output_path.exists() else 'none'}",
+        f"Failure log: {display_path(failure_log_output_path) if failure_log_output_path.exists() else 'none'}",
         f"Stopped early: {'yes' if stop_on_prereq else 'no'}",
         "",
     ]
@@ -201,7 +239,7 @@ def main() -> int:
             ]
         )
 
-    LOG_PATH.write_text("\n".join(summary_lines), encoding="utf-8")
+    write_text_resilient(LOG_PATH, "\n".join(summary_lines), fallback_dir=ARTIFACT_DIR)
     print("\n".join(summary_lines))
 
     if prereq_failures:

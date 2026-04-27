@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -25,14 +26,32 @@ def artifact_path(script_name: str, artifact_name: str) -> Path:
     return ARTIFACT_DIR / f"{script_name}__{artifact_name}"
 
 
+def _timestamp_slug() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+
+
 def display_path(path: Path) -> str:
     return path.relative_to(PROJECT_ROOT).as_posix()
 
 
 def write_artifact(script_name: str, artifact_name: str, content: str) -> Path:
     path = artifact_path(script_name, artifact_name)
-    path.write_text(content, encoding="utf-8")
-    return path
+    try:
+        path.write_text(content, encoding="utf-8")
+        return path
+    except PermissionError:
+        alternate = ARTIFACT_DIR / f"{path.stem}__{_timestamp_slug()}{path.suffix}"
+        alternate.write_text(content, encoding="utf-8")
+        return alternate
+
+
+def resolve_harness_output(primary_path: Path) -> Path:
+    candidates = [primary_path]
+    candidates.extend(sorted(ARTIFACT_DIR.glob(f"{primary_path.stem}__*{primary_path.suffix}")))
+    existing = [path for path in candidates if path.exists()]
+    if not existing:
+        return primary_path
+    return max(existing, key=lambda path: path.stat().st_mtime)
 
 
 def print_header(script_name: str, ledger_ids: list[str], expected: str) -> None:

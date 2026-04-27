@@ -1,0 +1,19 @@
+STDOUT:
+Starting Rocket Money transaction extraction...
+Fetched transaction page 1 with 2 rows (cursor None -> 'cursor_1', hasNext=True, total seen 2).
+Fetched transaction page 2 with 1 rows (cursor 'cursor_1' -> 'cursor_3', hasNext=False, total seen 3).
+Finished list extraction: 3 transactions across 2 pages.
+Wrote raw snapshot to C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression_artifacts\rocketmoney_regression_snapshot.json
+Fetching transaction details for 3 transaction(s)...
+Fetched detail bundle 1/3 for rocket_mock_0
+Fetched detail bundle 2/3 for rocket_mock_1
+Fetched detail bundle 3/3 for rocket_mock_2
+Finished detail enrichment for 3 transaction(s).
+Writing sync results into SQLite database at C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression_artifacts\rocketmoney_regression.db...
+Synced 3 Rocket Money transactions across 2 pages into C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression_artifacts\rocketmoney_regression.db
+
+
+STDERR:
+
+
+CODE:0

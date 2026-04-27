@@ -1,0 +1,14 @@
+STDOUT:
+Script: reg_project_structure
+Tested ledger IDs: EXT-001, EXT-002, EXT-003, EXT-004, EXT-005
+Expected: Rocket Money extractor code has its own folder under extractors, can generate JSON through the mock request path, supports captured Auth0 login request fields, has a browser-backed login helper, and can be run from main.py.
+[FAIL] EXT-002
+Expected: Mock Rocket Money request pagination writes a JSON extraction file.
+Observed: Mock extraction exited 1; output exists: True.
+Verifier: reg_project_structure
+Exit code: 20
+Artifact: anti-regression/regression_artifacts/reg_project_structure__mock_extract.txt
+Result: TEST_FAIL
+Exit code meaning: 20 = TEST_FAIL
+
+STDERR:

@@ -3,7 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from common import HARNESS_ROOT, TEST_FAIL, display_path, print_failures, print_pass, print_prereq_fail, run_python, write_artifact
+from common import (
+    HARNESS_ROOT,
+    TEST_FAIL,
+    display_path,
+    print_failures,
+    print_pass,
+    print_prereq_fail,
+    resolve_harness_output,
+    run_python,
+    write_artifact,
+)
 
 
 SCRIPT_NAME = "reg_contract_regression_system"
@@ -53,7 +63,7 @@ def main() -> int:
             }
         )
 
-    regression_log = HARNESS_ROOT / "regression.log"
+    regression_log = resolve_harness_output(HARNESS_ROOT / "regression.log")
     if not regression_log.exists():
         failures.append(
             {
@@ -77,7 +87,7 @@ def main() -> int:
             }
         )
 
-    failure_log = HARNESS_ROOT / "regression_failures.jsonl"
+    failure_log = resolve_harness_output(HARNESS_ROOT / "regression_failures.jsonl")
     existing_lines = []
     if failure_log.exists():
         existing_lines = [line for line in failure_log.read_text(encoding="utf-8").splitlines() if line.strip()]

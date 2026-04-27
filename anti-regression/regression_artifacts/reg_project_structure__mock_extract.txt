@@ -1,5 +1,5 @@
 STDOUT:
-Wrote 3 transactions across 2 pages to C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\data\private\rocketmoney_regression_mock.json
+Wrote 3 transactions across 2 pages to C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression_artifacts\rocketmoney_regression_mock.json
 
 
 STDERR:

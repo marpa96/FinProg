@@ -78,9 +78,10 @@ def main() -> int:
     parser.add_argument("--regression", action="store_true", help="Run the anti-regression harness after installing.")
     parser.add_argument("--api", action="store_true", help="Run only the Python forecast API.")
     parser.add_argument("--rocketmoney-login", action="store_true", help="Open browser login and refresh Rocket Money cookies.")
-    parser.add_argument("--rocketmoney-update", action="store_true", help="Refresh Rocket Money cookies if needed and extract transactions.")
+    parser.add_argument("--rocketmoney-update", action="store_true", help="Refresh Rocket Money cookies if needed and sync Rocket Money into the local database.")
     parser.add_argument("--rocketmoney-import-curls", action="store_true", help="Import Rocket Money cURL captures from data/private/rocketmoney_login_curls.txt into .env.")
     parser.add_argument("--rocketmoney-output", default="data/private/rocketmoney_transactions.json", help="Output path for Rocket Money transaction JSON.")
+    parser.add_argument("--rocketmoney-database", default="data/private/rocketmoney.db", help="SQLite database path for Rocket Money data.")
     parser.add_argument("--max-pages", type=int, default=None, help="Optional Rocket Money page limit for extraction.")
     args = parser.parse_args()
 
@@ -120,9 +121,11 @@ def main() -> int:
             return login_code
         extract_command = [
             sys.executable,
-            "scripts/extract_rocketmoney_transactions.py",
+            "scripts/sync_rocketmoney_database.py",
             "--no-refresh",
-            "--output",
+            "--database",
+            args.rocketmoney_database,
+            "--snapshot-output",
             args.rocketmoney_output,
         ]
         if args.max_pages is not None:

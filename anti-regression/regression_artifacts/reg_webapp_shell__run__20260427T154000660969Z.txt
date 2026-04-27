@@ -1,0 +1,9 @@
+STDOUT:
+Script: reg_webapp_shell
+Tested ledger IDs: WEB-001, WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009
+Expected: The project builds as a Vite React app, the main UI source contains the expected cashflow studio sections, the Python helper exposes the common setup workflows and starts the web app by default, and the React app uses the Python engine through an API.
+Observed: The Vite build passed and the React app contains the expected cashflow studio sections.
+Result: PASS
+Exit code meaning: 0 = PASS
+
+STDERR:

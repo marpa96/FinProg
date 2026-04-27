@@ -1,0 +1,26 @@
+STDOUT:
+
+STDERR:
+Traceback (most recent call last):
+  File "C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression\reg_contract_regression_system.py", line 216, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression\reg_contract_regression_system.py", line 137, in main
+    caught_artifact = write_artifact(
+        SCRIPT_NAME,
+        "caught_run.txt",
+        f"STDOUT:\n{caught_run.stdout}\n\nSTDERR:\n{caught_run.stderr}\n\nCODE:{caught_run.returncode}",
+    )
+  File "C:\Users\paom1\OneDrive\Desktop\Coding Projects\Custom Automation Scripts\Local\FinProg\anti-regression\regression\common.py", line 34, in write_artifact
+    path.write_text(content, encoding="utf-8")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\pathlib\_local.py", line 555, in write_text
+    return PathBase.write_text(self, data, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\pathlib\_abc.py", line 651, in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\pathlib\_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\paom1\\OneDrive\\Desktop\\Coding Projects\\Custom Automation Scripts\\Local\\FinProg\\anti-regression\\regression_artifacts\\reg_contract_regression_system__caught_run.txt'

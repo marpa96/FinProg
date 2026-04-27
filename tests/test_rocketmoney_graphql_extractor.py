@@ -1,6 +1,7 @@
 import unittest
 
 from extractors.rocket_money import RocketMoneyGraphqlExtractor
+from extractors.rocket_money.graphql import TRANSACTIONS_PERSISTED_QUERY_HASH
 
 
 def page_response(start_cursor, end_cursor, has_next_page, edges):
@@ -21,8 +22,22 @@ def page_response(start_cursor, end_cursor, has_next_page, edges):
 
 
 class RocketMoneyGraphqlExtractorTests(unittest.TestCase):
+    def test_uses_current_transactions_persisted_query_hash(self) -> None:
+        extractor = RocketMoneyGraphqlExtractor(headers={"cookie": "private"})
+        payload = extractor.build_payload(cursor=None)
+
+        self.assertEqual(
+            payload["extensions"]["persistedQuery"]["sha256Hash"],
+            "62dace281f8028f3e883ba36f7400005f396f305dcdb7fe6faeba4f9877f9c06",
+        )
+        self.assertEqual(
+            payload["extensions"]["persistedQuery"]["sha256Hash"],
+            TRANSACTIONS_PERSISTED_QUERY_HASH,
+        )
+
     def test_pages_by_end_cursor_until_done_and_deduplicates_nodes(self) -> None:
         request_cursors = []
+        progress_events = []
 
         def fake_transport(payload, headers):
             request_cursors.append(payload["variables"]["cursor"])
@@ -54,11 +69,15 @@ class RocketMoneyGraphqlExtractorTests(unittest.TestCase):
             headers={"cookie": "private"},
             page_size=2,
             transport=fake_transport,
+            progress_callback=progress_events.append,
         )
 
         extracted = extractor.extract()
 
         self.assertEqual(request_cursors, [None, "1"])
+        self.assertEqual(len(progress_events), 2)
+        self.assertEqual(progress_events[0]["pageIndex"], 1)
+        self.assertEqual(progress_events[1]["pageIndex"], 2)
         self.assertEqual(extracted.metadata["pageCount"], 2)
         self.assertEqual(extracted.metadata["transactionCount"], 3)
         self.assertEqual(extracted.metadata["duplicateCount"], 1)

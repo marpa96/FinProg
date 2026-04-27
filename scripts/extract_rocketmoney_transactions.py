@@ -62,7 +62,7 @@ def build_mock_transport():
                             "id": "rocket_mock_0",
                             "date": "2026-04-01",
                             "description": "Mock Paycheck",
-                            "amount": 1800,
+                            "amount": -180000,
                             "category": {"name": "Paychecks"},
                         },
                     },
@@ -72,7 +72,7 @@ def build_mock_transport():
                             "id": "rocket_mock_1",
                             "date": "2026-04-02",
                             "description": "Mock Groceries",
-                            "amount": -82.45,
+                            "amount": 8245,
                             "category": {"name": "Groceries"},
                         },
                     },
@@ -85,15 +85,15 @@ def build_mock_transport():
             [
                 {
                     "cursor": "cursor_2",
-                    "node": {
-                        "id": "rocket_mock_2",
-                        "date": "2026-04-03",
-                        "description": "Mock Internet",
-                        "amount": -75,
-                        "category": {"name": "Internet"},
-                    },
-                }
-            ],
+                        "node": {
+                            "id": "rocket_mock_2",
+                            "date": "2026-04-03",
+                            "description": "Mock Internet",
+                            "amount": 7500,
+                            "category": {"name": "Internet"},
+                        },
+                    }
+                ],
         )
 
     return fake_transport
@@ -161,7 +161,7 @@ def should_refresh_after_failure(exc: Exception) -> bool:
     return any(marker in message for marker in auth_markers)
 
 
-def run_extraction(args: argparse.Namespace) -> Any:
+def run_extraction(args: argparse.Namespace, progress_callback=None) -> Any:
     headers = {"cookie": "mock"} if args.mock else build_headers(args.header, refresh_if_missing=not args.no_refresh)
     extractor = RocketMoneyGraphqlExtractor(
         headers=headers,
@@ -169,6 +169,7 @@ def run_extraction(args: argparse.Namespace) -> Any:
         start_cursor=args.start_cursor,
         max_pages=args.max_pages,
         transport=build_mock_transport() if args.mock else None,
+        progress_callback=progress_callback,
     )
     return extractor.extract()
 

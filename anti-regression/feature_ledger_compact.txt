@@ -24,7 +24,10 @@ EXT-002 | rocket money request pagination can generate json output              
 EXT-003 | rocket money curl importer supports captured auth graphql cookie and analytics values                         | reg_project_structure
 EXT-004 | browser-backed rocket money login helper refreshes private cookie                                              | reg_project_structure
 EXT-005 | main runner installs deps and updates rocket money transaction json                                           | reg_project_structure
-REG-001 | orchestrator runs verifiers and treats nonzero verifier exits as failures                                 | reg_contract_regression_system
+EXT-006 | rocket money sync stores the full source into one local sqlite database                                        | reg_project_structure
+EXT-007 | rocket money sync stores transaction detail history split and related metadata                                 | reg_project_structure
+EXT-008 | rocket money sync prints visible progress while extracting enriching and writing                              | reg_project_structure
+REG-001 | orchestrator runs verifiers treats nonzero exits as failures and survives locked output files            | reg_contract_regression_system
 REG-002 | regression failures print the mandated block and keep tested ledger IDs visible                           | reg_contract_regression_system
 REG-003 | anti-regression ledger files coverage and verifiers stay synchronized                                     | reg_ledger_sync
 REG-004 | caught regression failures append to persistent failure history                                           | reg_contract_regression_system

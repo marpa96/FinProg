@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from common import HARNESS_ROOT, PROJECT_ROOT, display_path, print_failures, print_pass, print_prereq_fail, write_artifact
+from common import (
+    HARNESS_ROOT,
+    PROJECT_ROOT,
+    display_path,
+    print_failures,
+    print_pass,
+    print_prereq_fail,
+    resolve_harness_output,
+    write_artifact,
+)
 
 
 SCRIPT_NAME = "reg_ledger_sync"
@@ -58,7 +67,7 @@ def parse_coverage(path: Path) -> dict[str, set[str]]:
 def main() -> int:
     ledger_path = HARNESS_ROOT / "feature_ledger.txt"
     compact_path = HARNESS_ROOT / "feature_ledger_compact.txt"
-    coverage_path = HARNESS_ROOT / "regression_coverage.txt"
+    coverage_path = resolve_harness_output(HARNESS_ROOT / "regression_coverage.txt")
     regression_dir = HARNESS_ROOT / "regression"
 
     required_paths = [ledger_path, compact_path, coverage_path, regression_dir]

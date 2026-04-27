@@ -42,7 +42,7 @@ try {
     configFile: false,
     plugins: [react()],
     build: {
-      outDir: "dist",
+      outDir: "anti-regression/regression_artifacts/vite-dist",
       emptyOutDir: true,
     },
   });
@@ -280,3 +280,4 @@ try {
 
 if __name__ == "__main__":
     raise SystemExit(main())
+    build_out_dir = PROJECT_ROOT / "anti-regression" / "regression_artifacts" / "vite-dist"

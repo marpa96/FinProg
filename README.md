@@ -66,6 +66,13 @@ python scripts/extract_rocketmoney_transactions.py --output data/private/rocketm
 ```
 
 The extractor follows Rocket Money's transaction cursor until `hasNextPage` is false. If `ROCKETMONEY_COOKIE` is missing or appears expired, it starts a fresh Rocket Money/Auth0 login flow, updates `ROCKETMONEY_COOKIE` in `.env`, and retries once. `data/private/` is ignored by git.
+- Rocket Money local database sync:
+
+```powershell
+python scripts/sync_rocketmoney_database.py --database data/private/rocketmoney.db --snapshot-output data/private/rocketmoney_transactions.json
+```
+
+This is the main ingestion path for Rocket Money now. It fetches every available page, writes an optional raw JSON snapshot, and upserts the full source into one SQLite database with sync runs, page metadata, raw payload snapshots, normalized transaction/category/account/service/subscription tables, and per-transaction detail/history tables for split, related, rule, and chart data.
 - Rocket Money session refresh:
 
 ```powershell
@@ -92,12 +99,12 @@ For the most automated auth path, use the browser-backed login helper:
 python main.py --rocketmoney-update
 ```
 
-`main.py` installs Python dependencies from `requirements.txt`, installs the Playwright browser when needed, opens the browser login helper, then extracts transactions to `data/private/rocketmoney_transactions.json`. The browser helper uses a persistent profile under `data/private/`, so after the first successful login it can usually refresh cookies without pasting new cURLs. If Rocket Money shows MFA, CAPTCHA, or a risk challenge, complete it in the opened browser.
+`main.py` installs Python dependencies from `requirements.txt`, installs the Playwright browser when needed, opens the browser login helper, then syncs Rocket Money into `data/private/rocketmoney.db` and writes a snapshot to `data/private/rocketmoney_transactions.json`. The browser helper uses a persistent profile under `data/private/`, so after the first successful login it can usually refresh cookies without pasting new cURLs. If Rocket Money shows MFA, CAPTCHA, or a risk challenge, complete it in the opened browser.
 
 For a one-page smoke run:
 
 ```powershell
-python main.py --rocketmoney-update --max-pages 1 --rocketmoney-output data/private/rocketmoney_transactions_test.json
+python main.py --rocketmoney-update --max-pages 1 --rocketmoney-output data/private/rocketmoney_transactions_test.json --rocketmoney-database data/private/rocketmoney_test.db
 ```
 - Input normalization and validation for settings and transactions
 - Recurring schedule generation for weekly, biweekly, semimonthly, monthly, and yearly items

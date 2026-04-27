@@ -1,0 +1,37 @@
+{
+  "weeklyEvents": [
+    "2026-04-01",
+    "2026-04-08",
+    "2026-04-15"
+  ],
+  "frequencyChecks": {
+    "weekly": true,
+    "biweekly": true,
+    "semimonthly": true,
+    "monthly": true,
+    "yearly": true
+  },
+  "semimonthlyEvents": [
+    "2026-02-15",
+    "2026-02-28",
+    "2026-03-15"
+  ],
+  "oneTimeEvents": [
+    "2026-04-10"
+  ],
+  "dailyRates": {
+    "weekly": 100.0,
+    "biweeklyExpense": -10.0,
+    "weeklySavings": 10.0
+  },
+  "forecast": {
+    "dayOneNet": 60.0,
+    "dayOneBalance": 1060.0,
+    "dayOneSavingsBalance": 220.0,
+    "dayOneIncomeSplit": 10.0,
+    "dayTwoOneTimeInflow": 500.0,
+    "dayTwoOneTimeOutflow": 300.0,
+    "projectedEndBalance": 1500.0,
+    "projectedEndSavingsBalance": 300.0
+  }
+}

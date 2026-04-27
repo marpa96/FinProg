@@ -1,0 +1,9 @@
+STDOUT:
+Script: reg_contract_regression_system
+Tested ledger IDs: REG-001, REG-002, REG-004
+Expected: The orchestrator runs the verifier suite, writes regression.log, summarizes results, regression failure output conforms to the mandated contract, and caught regressions are logged in a persistent failure history.
+Observed: The orchestrator completed a nested smoke run, wrote regression.log with summary lines, uses the mandated failure block contract, and appends caught regressions to a persistent failure log.
+Result: PASS
+Exit code meaning: 0 = PASS
+
+STDERR:

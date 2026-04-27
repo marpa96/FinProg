@@ -232,6 +232,33 @@ VERIFY: reg_project_structure
 PRIORITY: high
 NOTES: avoids manually typing pip/playwright/extractor commands for routine updates
 
+ID: EXT-006
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money data is refreshed for FinProg ingestion
+EXPECT: the full Rocket Money transaction set is synced into one local SQLite database with raw snapshots, sync metadata, pagination metadata, and normalized transaction-related tables
+VERIFY: reg_project_structure
+PRIORITY: critical
+NOTES: the HAR is architecture evidence only; the live sync should fetch pages automatically and persist everything into one local database
+
+ID: EXT-007
+SRC: user
+STATUS: active
+TRIGGER: a Rocket Money transaction is inspected in depth
+EXPECT: transaction detail and history operations are also fetched and persisted into the local database so split, related, rule, and history-chart information is retained
+VERIFY: reg_project_structure
+PRIORITY: critical
+NOTES: detail HAR data is used to understand the request architecture, not as the stored data source
+
+ID: EXT-008
+SRC: user
+STATUS: active
+TRIGGER: Rocket Money database sync is running after authentication succeeds
+EXPECT: the sync prints visible progress for page extraction, detail enrichment, and database writing so it does not appear frozen
+VERIFY: reg_project_structure
+PRIORITY: high
+NOTES: progress can be line-based text; it does not need a graphical bar
+
 ID: REG-001
 SRC: user
 STATUS: active
@@ -239,7 +266,7 @@ TRIGGER: regression harness is run
 EXPECT: run_regression.py executes all regression scripts in order, writes regression.log, and summarizes passes, failures, and failing ledger IDs
 VERIFY: reg_contract_regression_system
 PRIORITY: critical
-NOTES: anti-regression folder is the harness home, nested smoke runs skip self-referential verifiers, and nonzero verifier exits count as failures
+NOTES: anti-regression folder is the harness home, nested smoke runs skip self-referential verifiers, nonzero verifier exits count as failures, and locked output files may fall back into regression_artifacts without aborting the run
 
 ID: REG-002
 SRC: user

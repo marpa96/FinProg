@@ -18,8 +18,9 @@ from extractors.base import ExtractedPayload
 
 ROCKET_MONEY_GRAPHQL_URL = "https://client-api.rocketmoney.com/graphql"
 TRANSACTIONS_OPERATION_NAME = "TransactionsPageTransactionTable"
-TRANSACTIONS_PERSISTED_QUERY_HASH = "c949db03d63e87919c3ec8a5b096efde3d0fa811935717ee7ab8fff71a30359f"
+TRANSACTIONS_PERSISTED_QUERY_HASH = "62dace281f8028f3e883ba36f7400005f396f305dcdb7fe6faeba4f9877f9c06"
 PageTransport = Callable[[dict[str, Any], dict[str, str]], dict[str, Any]]
+PageProgressCallback = Callable[[dict[str, Any]], None]
 
 
 def _utc_now() -> str:
@@ -45,6 +46,7 @@ class RocketMoneyGraphqlExtractor:
     start_cursor: str | None = None
     max_pages: int | None = None
     transport: PageTransport | None = None
+    progress_callback: PageProgressCallback | None = None
 
     def build_payload(self, cursor: str | None) -> dict[str, Any]:
         variables = {
@@ -136,6 +138,18 @@ class RocketMoneyGraphqlExtractor:
                 "hasNextPage": bool(page_info.get("hasNextPage")),
                 "edgeCount": len(edges),
             })
+            if self.progress_callback:
+                self.progress_callback(
+                    {
+                        "pageIndex": len(pages),
+                        "requestCursor": cursor,
+                        "startCursor": page_info.get("startCursor"),
+                        "endCursor": page_info.get("endCursor"),
+                        "hasNextPage": bool(page_info.get("hasNextPage")),
+                        "edgeCount": len(edges),
+                        "transactionCountSoFar": len(transactions) + len(edges),
+                    }
+                )
 
             for edge in edges:
                 node = edge.get("node") or {}
