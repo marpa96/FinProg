@@ -5,7 +5,7 @@ Passes: 4
 Failures: 0
 Prereq failures: 0
 Failing ledger IDs: none
-Coverage index: anti-regression/regression_artifacts/regression_coverage__20260427T163838933914Z.txt
+Coverage index: anti-regression/regression_coverage.txt
 Failure log: anti-regression/regression_failures.jsonl
 Stopped early: no
 
@@ -21,13 +21,13 @@ Artifact: anti-regression/regression_artifacts/reg_behavior_sample_export__run.t
 
 Script: reg_project_structure
 Return code: 0
-Ledger IDs: EXT-001, EXT-002, EXT-003, EXT-004, EXT-005, EXT-006, EXT-007, EXT-008
-Artifact: anti-regression/regression_artifacts/reg_project_structure__run__20260427T163838471948Z.txt
+Ledger IDs: EXT-001, EXT-002, EXT-003, EXT-004, EXT-005, EXT-006, EXT-007, EXT-008, EXT-009
+Artifact: anti-regression/regression_artifacts/reg_project_structure__run.txt
 
 Script: reg_webapp_shell
 Return code: 0
 Ledger IDs: WEB-001, WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009
-Artifact: anti-regression/regression_artifacts/reg_webapp_shell__run__20260427T163838932632Z.txt
+Artifact: anti-regression/regression_artifacts/reg_webapp_shell__run.txt
 
 
 

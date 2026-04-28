@@ -168,6 +168,7 @@ def run_extraction(args: argparse.Namespace, progress_callback=None) -> Any:
         page_size=args.page_size,
         start_cursor=args.start_cursor,
         max_pages=args.max_pages,
+        known_transaction_ids=getattr(args, "known_transaction_ids", set()),
         transport=build_mock_transport() if args.mock else None,
         progress_callback=progress_callback,
     )

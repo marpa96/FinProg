@@ -676,3 +676,132 @@ def sync_rocketmoney_payload_to_db(
         }
     finally:
         connection.close()
+
+
+def existing_rocketmoney_detail_ids(db_path: Path, transaction_ids: list[str]) -> set[str]:
+    if not transaction_ids or not db_path.exists():
+        return set()
+
+    store = RocketMoneySqliteStore(db_path)
+    connection = store.connect()
+    try:
+        store.ensure_schema(connection)
+        existing_ids: set[str] = set()
+        for index in range(0, len(transaction_ids), 500):
+            chunk = transaction_ids[index:index + 500]
+            placeholders = ", ".join("?" for _ in chunk)
+            rows = connection.execute(
+                f"""
+                SELECT transaction_id
+                FROM rocketmoney_transaction_details
+                WHERE transaction_id IN ({placeholders})
+                """,
+                chunk,
+            ).fetchall()
+            existing_ids.update(str(row["transaction_id"]) for row in rows)
+        return existing_ids
+    finally:
+        connection.close()
+
+
+def existing_rocketmoney_transaction_ids(db_path: Path) -> set[str]:
+    if not db_path.exists():
+        return set()
+
+    store = RocketMoneySqliteStore(db_path)
+    connection = store.connect()
+    try:
+        store.ensure_schema(connection)
+        rows = connection.execute("SELECT transaction_id FROM rocketmoney_transactions").fetchall()
+        return {str(row["transaction_id"]) for row in rows}
+    finally:
+        connection.close()
+
+
+def existing_rocketmoney_detail_signatures(db_path: Path, transaction_ids: list[str]) -> dict[str, tuple[str | None, str | None]]:
+    if not transaction_ids or not db_path.exists():
+        return {}
+
+    store = RocketMoneySqliteStore(db_path)
+    connection = store.connect()
+    try:
+        store.ensure_schema(connection)
+        signatures: dict[str, tuple[str | None, str | None]] = {}
+        for index in range(0, len(transaction_ids), 500):
+            chunk = transaction_ids[index:index + 500]
+            placeholders = ", ".join("?" for _ in chunk)
+            rows = connection.execute(
+                f"""
+                SELECT transaction_id, transaction_details_json, transaction_history_json
+                FROM rocketmoney_transaction_details
+                WHERE transaction_id IN ({placeholders})
+                """,
+                chunk,
+            ).fetchall()
+            for row in rows:
+                signatures[str(row["transaction_id"])] = (
+                    row["transaction_details_json"],
+                    row["transaction_history_json"],
+                )
+        return signatures
+    finally:
+        connection.close()
+
+
+def rocketmoney_transaction_ids_for_deep_scan(
+    db_path: Path,
+    recent_days: int | None = None,
+    limit: int | None = None,
+) -> list[str]:
+    if not db_path.exists():
+        return []
+
+    store = RocketMoneySqliteStore(db_path)
+    connection = store.connect()
+    try:
+        store.ensure_schema(connection)
+        filters = []
+        parameters: list[Any] = []
+        if recent_days is not None:
+            filters.append("posted_date >= date('now', ?)")
+            parameters.append(f"-{int(recent_days)} days")
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        limit_clause = "LIMIT ?" if limit is not None else ""
+        if limit is not None:
+            parameters.append(int(limit))
+        rows = connection.execute(
+            f"""
+            SELECT transaction_id
+            FROM rocketmoney_transactions
+            {where_clause}
+            ORDER BY COALESCE(posted_date, '') DESC, transaction_id
+            {limit_clause}
+            """,
+            parameters,
+        ).fetchall()
+        return [str(row["transaction_id"]) for row in rows]
+    finally:
+        connection.close()
+
+
+def sync_rocketmoney_details_to_db(
+    db_path: Path,
+    sync_run_id: str,
+    details_by_id: dict[str, dict[str, Any]],
+) -> dict[str, int]:
+    if not details_by_id:
+        return {
+            "detailRowsUpserted": 0,
+            "relatedRowsUpserted": 0,
+            "monthlyHistoryRowsUpserted": 0,
+        }
+
+    store = RocketMoneySqliteStore(db_path)
+    connection = store.connect()
+    try:
+        store.ensure_schema(connection)
+        counts = store.upsert_transaction_details(connection, sync_run_id, details_by_id)
+        connection.commit()
+        return counts
+    finally:
+        connection.close()

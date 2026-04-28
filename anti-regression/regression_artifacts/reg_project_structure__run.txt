@@ -1,8 +1,8 @@
 STDOUT:
 Script: reg_project_structure
-Tested ledger IDs: EXT-001, EXT-002, EXT-003, EXT-004, EXT-005
-Expected: Rocket Money extractor code has its own folder under extractors, can generate JSON through the mock request path, supports captured Auth0 login request fields, has a browser-backed login helper, and can be run from main.py.
-Observed: Rocket Money extractor package exists under extractors and mock request extraction generated JSON.
+Tested ledger IDs: EXT-001, EXT-002, EXT-003, EXT-004, EXT-005, EXT-006, EXT-007, EXT-008, EXT-009
+Expected: Rocket Money extractor code has its own folder under extractors, can generate JSON through the mock request path, supports captured Auth0 login request fields, has a browser-backed login helper, can be run from main.py, can sync the full source plus transaction-detail/history data into one local SQLite database, can feed a consolidated finance database, and prints visible sync progress.
+Observed: Rocket Money extractor package exists under extractors, mock extraction generated JSON, and mock sync generated a local SQLite database.
 Result: PASS
 Exit code meaning: 0 = PASS
 

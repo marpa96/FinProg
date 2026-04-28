@@ -93,6 +93,35 @@ class RocketMoneyGraphqlExtractorTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "session expired"):
             extractor.extract()
 
+    def test_can_stop_at_known_transaction_boundary(self) -> None:
+        request_cursors = []
+
+        def fake_transport(payload, headers):
+            request_cursors.append(payload["variables"]["cursor"])
+            return page_response(
+                "0",
+                "2",
+                True,
+                [
+                    {"cursor": "0", "node": {"id": "txn_new", "date": "2026-01-03", "amount": 100}},
+                    {"cursor": "1", "node": {"id": "txn_known", "date": "2026-01-02", "amount": 200}},
+                    {"cursor": "2", "node": {"id": "txn_old", "date": "2026-01-01", "amount": 300}},
+                ],
+            )
+
+        extractor = RocketMoneyGraphqlExtractor(
+            headers={"cookie": "private"},
+            known_transaction_ids={"txn_known"},
+            transport=fake_transport,
+        )
+
+        extracted = extractor.extract()
+
+        self.assertEqual(request_cursors, [None])
+        self.assertEqual([transaction["id"] for transaction in extracted.payload["transactions"]], ["txn_new"])
+        self.assertTrue(extracted.metadata["stoppedBecauseKnownTransaction"])
+        self.assertEqual(extracted.metadata["knownBoundaryTransactionId"], "txn_known")
+
 
 if __name__ == "__main__":
     unittest.main()

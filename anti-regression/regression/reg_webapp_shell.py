@@ -267,6 +267,57 @@ try {
             }
         )
 
+    source_transaction_markers = [
+        "Source transactions",
+        "fetchConsolidatedTransactions",
+        "/api/consolidated/transactions",
+        "/api/consolidated/sync/rocketmoney",
+        "sourceTransactions",
+        "sourceNote",
+        "planningAmountCents",
+        "sourceTransactionStartDate",
+        "sourceTransactionEndDate",
+        "sourceTransactionsMeta",
+        "URLSearchParams",
+        "startDate",
+        "endDate",
+        "offset",
+        "transactionDetail",
+        "sourceDetailDraft",
+        "selectedSourceBatchIds",
+        "Apply To Planner",
+        "Similar loaded transactions",
+        "clickable-transaction-card",
+        "transaction-screen",
+        "details-panel-premium",
+        "Source Transaction",
+        "today-edit-modal",
+        "modal-backdrop",
+        "Today",
+        "This Month",
+        "Last Month",
+        "All History",
+        "Load More",
+    ]
+    missing_source_transaction_markers = [
+        marker for marker in source_transaction_markers
+        if marker not in app_source and marker not in api_source
+    ]
+    if missing_source_transaction_markers:
+        source_artifact = write_artifact(
+            SCRIPT_NAME,
+            "source_transaction_viewer_snapshot.txt",
+            "\n\n=== App.jsx ===\n" + app_source + "\n\n=== app.py ===\n" + api_source,
+        )
+        failures.append(
+            {
+                "ledger_id": "WEB-009",
+                "expected": "The web app loads consolidated Rocket Money source transactions through the Python API and displays names, dates, notes, amounts, date range browsing, month shortcuts, paginated loading, a Today shortcut, a detail modal, and planning metadata.",
+                "observed": f"Missing consolidated transaction viewer markers: {missing_source_transaction_markers}.",
+                "artifact": display_path(source_artifact),
+            }
+        )
+
     if failures:
         return print_failures(SCRIPT_NAME, LEDGER_IDS, EXPECTED, failures)
 

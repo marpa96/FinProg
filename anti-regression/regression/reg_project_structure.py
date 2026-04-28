@@ -8,8 +8,8 @@ from common import ARTIFACT_DIR, PROJECT_ROOT, display_path, print_failures, pri
 
 
 SCRIPT_NAME = "reg_project_structure"
-LEDGER_IDS = ["EXT-001", "EXT-002", "EXT-003", "EXT-004", "EXT-005", "EXT-006", "EXT-007", "EXT-008"]
-EXPECTED = "Rocket Money extractor code has its own folder under extractors, can generate JSON through the mock request path, supports captured Auth0 login request fields, has a browser-backed login helper, can be run from main.py, can sync the full source plus transaction-detail/history data into one local SQLite database, and prints visible sync progress."
+LEDGER_IDS = ["EXT-001", "EXT-002", "EXT-003", "EXT-004", "EXT-005", "EXT-006", "EXT-007", "EXT-008", "EXT-009"]
+EXPECTED = "Rocket Money extractor code has its own folder under extractors, can generate JSON through the mock request path, supports captured Auth0 login request fields, has a browser-backed login helper, can be run from main.py, can sync the full source plus transaction-detail/history data into one local SQLite database, can feed a consolidated finance database, and prints visible sync progress."
 
 
 def main() -> int:
@@ -28,6 +28,7 @@ def main() -> int:
         PROJECT_ROOT / "requirements.txt",
         PROJECT_ROOT / "main.py",
         PROJECT_ROOT / "storage" / "rocketmoney_sqlite.py",
+        PROJECT_ROOT / "storage" / "consolidated_finance_sqlite.py",
     ]
     missing = [path for path in required_paths if not path.exists()]
 
@@ -193,6 +194,71 @@ def main() -> int:
                             "expected": "Mock DB sync stores per-transaction detail, related, and monthly history rows.",
                             "observed": f"Detail counts were details={detail_count}, related={related_count}, history={history_count}.",
                             "artifact": display_path(db_artifact),
+                    }
+                )
+
+        consolidated_path = ARTIFACT_DIR / "finprog_consolidated_regression.db"
+        if consolidated_path.exists():
+            consolidated_path.unlink()
+        consolidated_completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sqlite3; "
+                    "from pathlib import Path; "
+                    "from storage import ConsolidatedFinanceStore, sync_rocketmoney_to_consolidated; "
+                    f"summary = sync_rocketmoney_to_consolidated(Path(r'{db_path}'), Path(r'{consolidated_path}')); "
+                    "store = ConsolidatedFinanceStore(Path(r'" + str(consolidated_path) + "')); "
+                    "conn = store.connect(); "
+                    "store.ensure_schema(conn); "
+                    "store.upsert_classification_rule(conn, {"
+                    "'ruleId':'rule-rent','sourceId':'rocketmoney','matchField':'description',"
+                    "'matchOperator':'contains','matchValue':'Rent','planningLabel':'Rent',"
+                    "'normalizedType':'expense','cashflowClass':'fixed'}); "
+                    "conn.commit(); "
+                    "tx = conn.execute('SELECT COUNT(*) FROM finance_source_transactions').fetchone()[0]; "
+                    "rules = conn.execute('SELECT COUNT(*) FROM finance_classification_rules').fetchone()[0]; "
+                    "unit, sign, magnitude, planning, guess = conn.execute(\"SELECT source_amount_unit, source_amount_sign, normalized_magnitude_cents, planning_amount_cents, planning_type_guess FROM finance_source_transactions WHERE source_transaction_id = 'rocket_mock_0'\").fetchone(); "
+                    "expense_sign, income_sign = conn.execute(\"SELECT expense_sign, income_sign FROM finance_sources WHERE source_id = 'rocketmoney'\").fetchone(); "
+                    "print(f'{summary[\"sourceTransactionCount\"]},{tx},{rules},{unit},{sign},{magnitude},{planning},{guess},{expense_sign},{income_sign}'); "
+                    "conn.close()"
+                ),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if consolidated_completed.returncode != 0:
+            failures.append(
+                {
+                    "ledger_id": "EXT-009",
+                    "expected": "Rocket Money rows can feed the consolidated finance database and store user classification rules.",
+                    "observed": f"Consolidated sync exited {consolidated_completed.returncode}: {consolidated_completed.stderr}",
+                    "artifact": display_path(db_artifact),
+                }
+            )
+        else:
+            source_count, consolidated_count, rule_count, unit, sign, magnitude, planning, guess, expense_sign, income_sign = consolidated_completed.stdout.strip().split(",")
+            if (
+                int(source_count),
+                int(consolidated_count),
+                int(rule_count),
+                unit,
+                sign,
+                int(magnitude),
+                int(planning),
+                guess,
+                expense_sign,
+                income_sign,
+            ) != (3, 3, 1, "cents", "negative", 180000, 180000, "income", "positive", "negative"):
+                failures.append(
+                    {
+                        "ledger_id": "EXT-009",
+                        "expected": "Consolidated DB preserves source rows, source sign convention, amount units/signs/magnitudes, planning direction, and classification rules.",
+                        "observed": consolidated_completed.stdout.strip(),
+                        "artifact": display_path(db_artifact),
                     }
                 )
 

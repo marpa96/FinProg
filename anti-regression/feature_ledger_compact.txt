@@ -18,15 +18,16 @@ WEB-005 | app supports time-based dark mode with settings control               
 WEB-006 | settings page manages editable categories icons subcategories and income default savings split percentages| reg_webapp_shell
 WEB-007 | app shows separate savings balance plus savings and income split buckets                                  | reg_webapp_shell
 WEB-008 | app has a dedicated savings page whose header shows savings balance                                       | reg_webapp_shell
-WEB-009 | python engine is the source of truth and react fetches forecast data through the app api                  | reg_webapp_shell
+WEB-009 | consolidated source data feeds paginated clickable transaction viewer with premium detail modal                 | reg_webapp_shell
 EXT-001 | rocket money extractor code lives under extractors                                                        | reg_project_structure
 EXT-002 | rocket money request pagination can generate json output                                                      | reg_project_structure
 EXT-003 | rocket money curl importer supports captured auth graphql cookie and analytics values                         | reg_project_structure
 EXT-004 | browser-backed rocket money login helper refreshes private cookie                                              | reg_project_structure
-EXT-005 | main runner installs deps and updates rocket money transaction json                                           | reg_project_structure
-EXT-006 | rocket money sync stores the full source into one local sqlite database                                        | reg_project_structure
+EXT-005 | main runner installs deps and supports quick and deep rocket money update paths                               | reg_project_structure
+EXT-006 | rocket money sync stores full source and can feed consolidated finance sqlite                                  | reg_project_structure
 EXT-007 | rocket money sync stores transaction detail history split and related metadata                                 | reg_project_structure
-EXT-008 | rocket money sync prints visible progress while extracting enriching and writing                              | reg_project_structure
+EXT-008 | rocket money sync prints progress and uses source scheduler lanes for quick daily weekly monthly scans          | reg_project_structure
+EXT-009 | consolidated finance db stores source sign conventions and user fixed variable planning rules                 | reg_project_structure
 REG-001 | orchestrator runs verifiers treats nonzero exits as failures and survives locked output files            | reg_contract_regression_system
 REG-002 | regression failures print the mandated block and keep tested ledger IDs visible                           | reg_contract_regression_system
 REG-003 | anti-regression ledger files coverage and verifiers stay synchronized                                     | reg_ledger_sync

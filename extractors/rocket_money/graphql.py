@@ -45,6 +45,7 @@ class RocketMoneyGraphqlExtractor:
     variables: dict[str, Any | None] = field(default_factory=dict)
     start_cursor: str | None = None
     max_pages: int | None = None
+    known_transaction_ids: set[str] = field(default_factory=set)
     transport: PageTransport | None = None
     progress_callback: PageProgressCallback | None = None
 
@@ -114,6 +115,8 @@ class RocketMoneyGraphqlExtractor:
         transactions: list[dict[str, Any]] = []
         duplicate_count = 0
         stopped_by_max_pages = False
+        stopped_by_known_transaction = False
+        known_boundary_transaction_id = None
 
         while True:
             if self.max_pages is not None and len(pages) >= self.max_pages:
@@ -154,6 +157,10 @@ class RocketMoneyGraphqlExtractor:
             for edge in edges:
                 node = edge.get("node") or {}
                 node_id = node.get("id") or edge.get("cursor")
+                if node_id in self.known_transaction_ids:
+                    stopped_by_known_transaction = True
+                    known_boundary_transaction_id = node_id
+                    break
                 if node_id in seen_ids:
                     duplicate_count += 1
                     continue
@@ -163,6 +170,8 @@ class RocketMoneyGraphqlExtractor:
                     **node,
                 })
 
+            if stopped_by_known_transaction:
+                break
             if not page_info.get("hasNextPage") or not page_info.get("endCursor"):
                 break
             cursor = page_info["endCursor"]
@@ -184,5 +193,7 @@ class RocketMoneyGraphqlExtractor:
                 "startedAt": started_at,
                 "completedAt": _utc_now(),
                 "stoppedBecauseMaxPages": stopped_by_max_pages,
+                "stoppedBecauseKnownTransaction": stopped_by_known_transaction,
+                "knownBoundaryTransactionId": known_boundary_transaction_id,
             },
         )

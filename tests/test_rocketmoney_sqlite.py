@@ -5,7 +5,14 @@ from pathlib import Path
 from extractors.rocket_money import RocketMoneyGraphqlExtractor, RocketMoneyTransactionDetailExtractor
 from scripts.extract_rocketmoney_transactions import build_mock_transport
 from scripts.sync_rocketmoney_database import build_mock_detail_transport
-from storage import sync_rocketmoney_payload_to_db
+from storage import (
+    existing_rocketmoney_detail_ids,
+    existing_rocketmoney_detail_signatures,
+    existing_rocketmoney_transaction_ids,
+    rocketmoney_transaction_ids_for_deep_scan,
+    sync_rocketmoney_details_to_db,
+    sync_rocketmoney_payload_to_db,
+)
 
 
 class RocketMoneySqliteTests(unittest.TestCase):
@@ -67,6 +74,37 @@ class RocketMoneySqliteTests(unittest.TestCase):
         self.assertEqual(detail_count, 3)
         self.assertEqual(related_count, 6)
         self.assertEqual(monthly_count, 6)
+
+    def test_existing_details_can_drive_quick_enrichment(self) -> None:
+        db_path = Path("anti-regression/regression_artifacts/test_rocketmoney_quick_details.db")
+        if db_path.exists():
+            db_path.unlink()
+
+        extractor = RocketMoneyGraphqlExtractor(
+            headers={"cookie": "mock"},
+            transport=build_mock_transport(),
+        )
+        extracted = extractor.extract()
+        transaction_ids = [transaction["id"] for transaction in extracted.payload["transactions"]]
+
+        first_summary = sync_rocketmoney_payload_to_db(db_path, extracted)
+        self.assertEqual(existing_rocketmoney_detail_ids(db_path, transaction_ids), set())
+
+        detail_extractor = RocketMoneyTransactionDetailExtractor(
+            headers={"cookie": "mock"},
+            transport=build_mock_detail_transport(),
+        )
+        first_detail_id = transaction_ids[0]
+        details_by_id = {
+            first_detail_id: detail_extractor.fetch_transaction_bundle(first_detail_id),
+        }
+        sync_rocketmoney_details_to_db(db_path, first_summary["syncRunId"], details_by_id)
+
+        self.assertEqual(existing_rocketmoney_detail_ids(db_path, transaction_ids), {first_detail_id})
+        self.assertEqual(existing_rocketmoney_transaction_ids(db_path), set(transaction_ids))
+        signatures = existing_rocketmoney_detail_signatures(db_path, transaction_ids)
+        self.assertEqual(set(signatures), {first_detail_id})
+        self.assertEqual(rocketmoney_transaction_ids_for_deep_scan(db_path, limit=2), ["rocket_mock_2", "rocket_mock_1"])
 
 
 if __name__ == "__main__":

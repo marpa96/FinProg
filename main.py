@@ -33,7 +33,8 @@ def ensure_python_dependencies() -> int:
         return 0
 
     missing_playwright = importlib.util.find_spec("playwright") is None
-    if not missing_playwright:
+    missing_rich = importlib.util.find_spec("rich") is None
+    if not missing_playwright and not missing_rich:
         return 0
 
     print("Installing Python dependencies from requirements.txt...")
@@ -82,6 +83,30 @@ def main() -> int:
     parser.add_argument("--rocketmoney-import-curls", action="store_true", help="Import Rocket Money cURL captures from data/private/rocketmoney_login_curls.txt into .env.")
     parser.add_argument("--rocketmoney-output", default="data/private/rocketmoney_transactions.json", help="Output path for Rocket Money transaction JSON.")
     parser.add_argument("--rocketmoney-database", default="data/private/rocketmoney.db", help="SQLite database path for Rocket Money data.")
+    parser.add_argument(
+        "--rocketmoney-detail-mode",
+        choices=("quick", "full", "skip"),
+        default="quick",
+        help="Rocket Money detail enrichment mode: quick fetches missing details only, full refetches all, skip fetches none.",
+    )
+    parser.add_argument(
+        "--rocketmoney-transaction-mode",
+        choices=("quick", "full"),
+        default="quick",
+        help="Rocket Money transaction paging mode: quick stops at known history, full pages through everything.",
+    )
+    parser.add_argument(
+        "--rocketmoney-detail-throttle-delay",
+        type=float,
+        default=900.0,
+        help="Seconds Rocket Money deep sync should pause before resuming after 403/429/5xx pressure.",
+    )
+    parser.add_argument(
+        "--rocketmoney-detail-request-delay",
+        type=float,
+        default=None,
+        help="Seconds to wait between Rocket Money detail bundles.",
+    )
     parser.add_argument("--max-pages", type=int, default=None, help="Optional Rocket Money page limit for extraction.")
     args = parser.parse_args()
 
@@ -127,7 +152,15 @@ def main() -> int:
             args.rocketmoney_database,
             "--snapshot-output",
             args.rocketmoney_output,
+            "--transaction-mode",
+            args.rocketmoney_transaction_mode,
+            "--detail-mode",
+            args.rocketmoney_detail_mode,
+            "--detail-throttle-delay",
+            str(args.rocketmoney_detail_throttle_delay),
         ]
+        if args.rocketmoney_detail_request_delay is not None:
+            extract_command.extend(["--detail-request-delay", str(args.rocketmoney_detail_request_delay)])
         if args.max_pages is not None:
             extract_command.extend(["--max-pages", str(args.max_pages)])
         return run_command(extract_command)

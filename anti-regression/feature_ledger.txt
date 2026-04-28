@@ -182,10 +182,10 @@ ID: WEB-009
 SRC: user
 STATUS: active
 TRIGGER: the web app needs forecast calculations
-EXPECT: the Python engine is the true source of truth and the React app gets forecast data through the Python API instead of calculating locally in JavaScript
+EXPECT: the Python engine is the true source of truth, React gets forecast data through the Python API instead of calculating locally in JavaScript, source data is consolidated in Python-managed SQLite before the web app consumes it, Rocket Money source transactions can be viewed from the web app with dates, names, amounts, status, notes, category metadata, per-day and date-range browsing, a Today shortcut, month shortcuts, paginated loading for full history, a premium expanded transaction detail view, category/subcategory planning controls with batch application for similar loaded source transactions, and clickable transaction cards throughout the app, and background service work such as source sync scheduling and Rocket Money quick sync is initiated through the Python API rather than blocking the UI
 VERIFY: reg_webapp_shell
 PRIORITY: critical
-NOTES: future engine extensions should land in Python first and then flow outward to the UI and API
+NOTES: future engine and service extensions should land in Python first and then flow outward to the UI and API; Rocket Money quick sync can run in the background with a home-page manual trigger, deeper sync lanes are scheduled by source policy, and multi-source records should flow through the consolidated DB rather than browser localStorage alone
 
 ID: EXT-001
 SRC: user
@@ -227,19 +227,19 @@ ID: EXT-005
 SRC: user
 STATUS: active
 TRIGGER: Rocket Money transactions need to be updated from the local venv
-EXPECT: requirements.txt declares needed Python dependencies and main.py exposes one command that installs dependencies, refreshes browser auth, and extracts Rocket Money transaction JSON
+EXPECT: requirements.txt declares needed Python dependencies and main.py exposes commands that install dependencies, refresh browser auth, run quick Rocket Money syncs, and run deeper reconciliation when requested
 VERIFY: reg_project_structure
 PRIORITY: high
-NOTES: avoids manually typing pip/playwright/extractor commands for routine updates
+NOTES: avoids manually typing pip/playwright/extractor commands for routine updates; quick mode is the foreground/default path and deep mode is explicit
 
 ID: EXT-006
 SRC: user
 STATUS: active
 TRIGGER: Rocket Money data is refreshed for FinProg ingestion
-EXPECT: the full Rocket Money transaction set is synced into one local SQLite database with raw snapshots, sync metadata, pagination metadata, and normalized transaction-related tables
+EXPECT: the full Rocket Money transaction set is synced into one source SQLite database with raw snapshots, sync metadata, pagination metadata, and normalized transaction-related tables, then can feed a source-agnostic consolidated finance database
 VERIFY: reg_project_structure
 PRIORITY: critical
-NOTES: the HAR is architecture evidence only; the live sync should fetch pages automatically and persist everything into one local database
+NOTES: the HAR is architecture evidence only; the live sync should fetch pages automatically, persist everything into one local database, and expose rows for later cross-source comparison
 
 ID: EXT-007
 SRC: user
@@ -254,10 +254,19 @@ ID: EXT-008
 SRC: user
 STATUS: active
 TRIGGER: Rocket Money database sync is running after authentication succeeds
-EXPECT: the sync prints visible progress for page extraction, detail enrichment, and database writing so it does not appear frozen
+EXPECT: the sync prints visible progress for page extraction, detail enrichment, and database writing so it does not appear frozen, while the web app can start quick sync in the background, expose a manual quick-scan trigger, and use a source-agnostic scheduler for quick, daily recent-history, weekly, and monthly deep reconciliation lanes
 VERIFY: reg_project_structure
 PRIORITY: high
-NOTES: progress can be line-based text; it does not need a graphical bar
+NOTES: progress can be line-based text or a Rich terminal bar; background web sync should report status without blocking normal app use, and deep lanes are budgeted/paced to reduce third-party service pressure
+
+ID: EXT-009
+SRC: user
+STATUS: active
+TRIGGER: multiple source databases need to feed the FinProg web app
+EXPECT: source transactions can be copied into a consolidated SQLite database with source IDs, source transaction IDs, source amount conventions for expense/income signs, amount units, signed source amounts, normalized magnitude cents, planning-direction guesses, and user-authored classification rules for planning intent including fixed or variable cashflow class
+VERIFY: reg_project_structure
+PRIORITY: critical
+NOTES: supports future cross-source comparison and rules such as "this Rocket Money charge is rent" or "this income source follows OB income rules" without hardcoding one sign convention for all sources; fixed/variable remains user-reviewable classification metadata
 
 ID: REG-001
 SRC: user

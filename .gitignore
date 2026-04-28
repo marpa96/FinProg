@@ -7,3 +7,4 @@ __pycache__/
 data/private/
 rocketmoney_transactions*.json
 *.db
+PLANNED_FEATURES.md
